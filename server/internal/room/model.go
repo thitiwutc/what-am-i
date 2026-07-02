@@ -7,6 +7,7 @@ import (
 
 type Room struct {
 	ID      string
+	State   State
 	Players map[uuid.UUID]player.Player
 }
 
@@ -22,3 +23,9 @@ type JoinRoomResponse struct {
 	PlayerID   string `json:"player_id"`
 	PlayerName string `json:"player_name"`
 }
+
+type State int8
+
+const (
+	StatePreGame State = iota + 1
+)

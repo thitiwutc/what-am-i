@@ -41,6 +41,7 @@ func (r *RoomRepository) Create() (*Room, error) {
 		}
 		room := Room{
 			ID:      rid,
+			State:   StatePreGame,
 			Players: make(map[uuid.UUID]player.Player),
 		}
 		r.rooms[rid] = &room
