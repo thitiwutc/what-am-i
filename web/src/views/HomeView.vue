@@ -4,7 +4,12 @@
       <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 shadow py-2 rounded">
         <div class="row">
           <div class="col-12">
-            <input type="text" class="form-control" placeholder="Name" aria-label="Name" />
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Player name"
+              aria-label="Player name"
+            />
           </div>
         </div>
         <div class="row mt-2 gy-2">
