@@ -26,9 +26,11 @@ func main() {
 	app.Get(healthcheck.ReadinessEndpoint, healthcheck.New())
 	app.Get(healthcheck.StartupEndpoint, healthcheck.New())
 
+	api := app.Group("/api")
+
 	roomRepo := room.NewRoomRepository(&lgr)
 
-	roomGroup := app.Group("/rooms")
+	roomGroup := api.Group("/rooms")
 	roomGroup.Post("/", room.CreateRoomHandler(&lgr, roomRepo))
 
 	log.Fatal().Msg(app.Listen(":3000").Error())
