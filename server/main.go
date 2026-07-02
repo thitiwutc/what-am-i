@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/gofiber/contrib/v3/websocket"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/healthcheck"
@@ -44,6 +45,31 @@ func main() {
 	roomGroup := api.Group("/rooms")
 	roomGroup.Post("/", room.CreateRoomHandler(&lgr, roomRepo))
 	roomGroup.Post("/:room_id/players", room.JoinRoomHandler(&lgr, roomRepo))
+
+	// Websocket
+	api.Get("/ws", websocket.New(func(c *websocket.Conn) {
+		// c.Locals is added to the *websocket.Conn
+		lgr.Info().Msg("Upgraded protocol to websocket")
+
+		// websocket.Conn bindings https://pkg.go.dev/github.com/fasthttp/websocket?tab=doc#pkg-index
+		var (
+			mt  int
+			msg []byte
+			err error
+		)
+		for {
+			if mt, msg, err = c.ReadMessage(); err != nil {
+				lgr.Println("read:", err)
+				break
+			}
+			lgr.Printf("recv: %s", msg)
+
+			if err = c.WriteMessage(mt, msg); err != nil {
+				lgr.Println("write:", err)
+				break
+			}
+		}
+	}))
 
 	log.Fatal().Msg(app.Listen(":3000").Error())
 }
