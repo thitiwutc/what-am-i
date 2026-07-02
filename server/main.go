@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/healthcheck"
 	"github.com/gofiber/fiber/v3/middleware/logger"
+	"github.com/gofiber/fiber/v3/middleware/requestid"
 )
 
 func main() {
@@ -13,6 +14,7 @@ func main() {
 
 	// Middlewares
 	app.Use(logger.New())
+	app.Use(requestid.New())
 	app.Get(healthcheck.LivenessEndpoint, healthcheck.New())
 	app.Get(healthcheck.ReadinessEndpoint, healthcheck.New())
 	app.Get(healthcheck.StartupEndpoint, healthcheck.New())
