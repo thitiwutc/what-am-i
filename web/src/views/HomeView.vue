@@ -34,12 +34,10 @@ async function createRoom() {
             />
           </div>
         </div>
-        <div class="row mt-2 gy-2">
-          <div class="col-12 text-center">
-            <button class="btn btn-primary" @click="createRoom">Create room</button>
-          </div>
-          <div class="col-12 text-center">
+        <div class="row mt-2 justify-content-end">
+          <div class="col-12 text-end">
             <button class="btn btn-secondary">Join room</button>
+            <button class="btn btn-primary ms-2" @click="createRoom">Create room</button>
           </div>
         </div>
       </div>
