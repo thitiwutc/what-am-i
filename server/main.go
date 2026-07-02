@@ -14,7 +14,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/thitiwutc/what-am-i/server/internal/game"
-	"github.com/thitiwutc/what-am-i/server/internal/room"
 )
 
 func main() {
@@ -41,11 +40,11 @@ func main() {
 
 	api := app.Group("/api")
 
-	roomRepo := room.NewRoomRepository(&lgr)
+	roomRepo := game.NewRoomRepository(&lgr)
 
 	roomGroup := api.Group("/rooms")
-	roomGroup.Post("/", room.CreateRoomHandler(&lgr, roomRepo))
-	roomGroup.Post("/:room_id/players", room.JoinRoomHandler(&lgr, roomRepo))
+	roomGroup.Post("/", game.CreateRoomHandler(&lgr, roomRepo))
+	roomGroup.Post("/:room_id/players", game.JoinRoomHandler(&lgr, roomRepo))
 
 	// Websocket
 	api.Get("/ws", websocket.New(game.GameHandler(&lgr)))

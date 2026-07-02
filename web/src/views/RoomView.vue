@@ -29,12 +29,12 @@ onMounted(async () => {
 
   room.value.id = route.params.room_id as string
   room.value.players = respBody.data.players
-})
 
-onMounted(() => {
+  console.log('POINT A')
   // Connection opened
   ws.addEventListener('open', () => {
-    ws.send('Hello Server!')
+    console.log('Websocket connected')
+    ws.send(JSON.stringify({ type: 1, payload: room.value.id }))
   })
 
   // Listen for messages
