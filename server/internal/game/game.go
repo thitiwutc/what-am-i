@@ -53,7 +53,10 @@ func GameHandler(
 				break
 			} else if err != nil {
 				lgr.Error().Err(err).Msg("Read message failed")
-				c.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+				c.WriteJSON(ErrorEvent{
+					Event: Event{Type: EvtError},
+					Error: err.Error(),
+				})
 				continue
 			}
 
@@ -63,17 +66,23 @@ func GameHandler(
 			err = json.Unmarshal(msg, cmd)
 			if err != nil {
 				lgr.Error().Err(err).Msg("JSON Unmarshal websocket message failed")
-				c.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+				c.WriteJSON(ErrorEvent{
+					Event: Event{Type: EvtError},
+					Error: err.Error(),
+				})
 				continue
 			}
 
 			switch cmd.Type {
-			case JoinRoom:
+			case CmdTypeJoinRoom:
 				cmd := new(JoinRoomCommand)
 				err = json.Unmarshal(msg, cmd)
 				if err != nil {
 					lgr.Error().Err(err).Msg("JSON Unmarshal websocket message failed")
-					c.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
 					continue
 				}
 
@@ -81,7 +90,10 @@ func GameHandler(
 				if err != nil {
 					const errMsg = "Invalid JoinRoom command data"
 					lgr.Error().Err(err).Msg(errMsg)
-					c.WriteMessage(websocket.TextMessage, []byte(errMsg))
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: errMsg,
+					})
 					continue
 				}
 
@@ -90,7 +102,10 @@ func GameHandler(
 				room, err := rr.FindByID(cmd.RoomID)
 				if err != nil {
 					lgr.Error().Err(err).Msg("Find room failed")
-					c.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
 					continue
 				}
 
@@ -112,10 +127,19 @@ func GameHandler(
 					// Waiting for notification
 					for r := range notify {
 						lgr.Print("Room state changed")
-						b, err := json.Marshal(r)
+						ev := RoomStateEvent{
+							Event: Event{
+								Type: EvtRoomState,
+							},
+							RoomState: *r,
+						}
+						b, err := json.Marshal(ev)
 						if err != nil {
-							lgr.Error().Err(err).Msg("JSON marshal room failed")
-							c.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+							lgr.Error().Err(err).Msg("JSON marshal room state event failed")
+							c.WriteJSON(ErrorEvent{
+								Event: Event{Type: EvtError},
+								Error: err.Error(),
+							})
 							continue
 						}
 
@@ -126,13 +150,19 @@ func GameHandler(
 				err = rr.Update(room)
 				if err != nil {
 					lgr.Error().Err(err).Msg("Update room failed")
-					c.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
 					continue
 				}
 			default:
 				errMsg := "unknown command type: " + strconv.Itoa(int(cmd.Type))
 				lgr.Error().Msg(errMsg)
-				c.WriteMessage(websocket.TextMessage, []byte(errMsg))
+				c.WriteJSON(ErrorEvent{
+					Event: Event{Type: EvtError},
+					Error: errMsg,
+				})
 				continue
 			}
 		}

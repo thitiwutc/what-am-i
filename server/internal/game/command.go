@@ -3,7 +3,7 @@ package game
 type CommandType int8
 
 const (
-	JoinRoom CommandType = iota + 1
+	CmdTypeJoinRoom CommandType = iota + 1
 )
 
 // Command is used for deserializing message via websocket protocol.

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CommandType } from '@/command-type'
 import { getEnv } from '@/env'
+import { EventType } from '@/event-type'
 import type { Room } from '@/types/room'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
@@ -31,12 +32,19 @@ onMounted(async () => {
   // Listen for messages
   ws.addEventListener('message', (event) => {
     console.log('Received websocket message:', event.data)
-    const roomState = JSON.parse(event.data)
-    console.log({ roomState })
-    // Update room state
-    room.value = {
-      id: roomState.id,
-      players: roomState.players,
+    const serverEvent = JSON.parse(event.data)
+    console.log({ serverEvent })
+    switch (serverEvent.type) {
+      case EventType.Error:
+        console.error(serverEvent.error)
+        break
+      case EventType.RoomState:
+        // Update room state
+        room.value = {
+          id: serverEvent.room_state.id,
+          players: serverEvent.room_state.players,
+        }
+        break
     }
   })
 
