@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { CommandType } from '@/command-type'
 import { getEnv } from '@/env'
 import type { Room } from '@/types/room'
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 const env = getEnv()
@@ -14,27 +15,17 @@ const room = ref<Room>({
 const route = useRoute()
 
 onMounted(async () => {
-  const url = new URL('rooms/' + route.params.room_id + '/players', env.apiUrl)
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      player_name: '',
-    }),
-  })
-
-  const respBody = await resp.json()
-
-  room.value.id = route.params.room_id as string
-  room.value.players = respBody.data.players
-
-  console.log('POINT A')
   // Connection opened
   ws.addEventListener('open', () => {
-    console.log('Websocket connected')
-    ws.send(JSON.stringify({ type: 1, payload: room.value.id }))
+    // Join room
+    // TODO: Fill player name
+    ws.send(
+      JSON.stringify({
+        type: CommandType.JoinRoom,
+        room_id: route.params.room_id as string,
+        player_name: '',
+      }),
+    )
   })
 
   // Listen for messages
@@ -55,6 +46,11 @@ onMounted(async () => {
       console.log('Connection died')
     }
   })
+})
+
+onUnmounted(() => {
+  console.log('Closing websocket connection')
+  ws.close()
 })
 </script>
 
