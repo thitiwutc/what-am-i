@@ -48,10 +48,8 @@ func main() {
 
 	// Websocket
 	api.Get("/ws", websocket.New(func(c *websocket.Conn) {
-		// c.Locals is added to the *websocket.Conn
 		lgr.Info().Msg("Upgraded protocol to websocket")
 
-		// websocket.Conn bindings https://pkg.go.dev/github.com/fasthttp/websocket?tab=doc#pkg-index
 		var (
 			mt  int
 			msg []byte
