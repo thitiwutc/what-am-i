@@ -60,10 +60,17 @@ func JoinRoomHandler(lgr *zerolog.Logger, rr *RoomRepository) fiber.Handler {
 			return fmt.Errorf("update room %s: %w", rid, err)
 		}
 
+		players := make([]player.PlayerResponse, 0, len(room.Players))
+		for _, p := range room.Players {
+			players = append(players, player.PlayerResponse{
+				ID:   p.ID,
+				Name: p.Name,
+			})
+		}
+
 		return c.JSON(api.BaseResponse[JoinRoomResponse]{
 			Data: JoinRoomResponse{
-				PlayerID:   p.ID.String(),
-				PlayerName: p.Name,
+				Players: players,
 			},
 		})
 	}
