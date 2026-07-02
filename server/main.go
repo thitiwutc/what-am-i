@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/thitiwutc/what-am-i/server/internal/game"
 	"github.com/thitiwutc/what-am-i/server/internal/room"
 )
 
@@ -47,27 +48,7 @@ func main() {
 	roomGroup.Post("/:room_id/players", room.JoinRoomHandler(&lgr, roomRepo))
 
 	// Websocket
-	api.Get("/ws", websocket.New(func(c *websocket.Conn) {
-		lgr.Info().Msg("Upgraded protocol to websocket")
-
-		var (
-			mt  int
-			msg []byte
-			err error
-		)
-		for {
-			if mt, msg, err = c.ReadMessage(); err != nil {
-				lgr.Println("read:", err)
-				break
-			}
-			lgr.Printf("recv: %s", msg)
-
-			if err = c.WriteMessage(mt, msg); err != nil {
-				lgr.Println("write:", err)
-				break
-			}
-		}
-	}))
+	api.Get("/ws", websocket.New(game.GameHandler(&lgr)))
 
 	log.Fatal().Msg(app.Listen(":3000").Error())
 }
