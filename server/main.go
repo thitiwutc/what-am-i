@@ -1,15 +1,21 @@
 package main
 
 import (
-	"log"
+	"os"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/healthcheck"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
+	lgr := zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).
+		With().
+		Timestamp().
+		Logger()
 	app := fiber.New()
 
 	// Middlewares
@@ -19,5 +25,5 @@ func main() {
 	app.Get(healthcheck.ReadinessEndpoint, healthcheck.New())
 	app.Get(healthcheck.StartupEndpoint, healthcheck.New())
 
-	log.Fatal(app.Listen(":3000"))
+	log.Fatal().Msg(app.Listen(":3000").Error())
 }
