@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
@@ -15,7 +16,10 @@ import (
 )
 
 func main() {
-	lgr := zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).
+	lgr := zerolog.New(zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.TimeOnly,
+	}).
 		With().
 		Timestamp().
 		Logger()
