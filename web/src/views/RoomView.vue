@@ -4,6 +4,8 @@ import type { Room } from '@/types/room'
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
+const env = getEnv()
+const ws = new WebSocket(new URL('ws', env.apiUrl))
 const curUrl = window.location.href
 const room = ref<Room>({
   id: '',
@@ -12,7 +14,6 @@ const room = ref<Room>({
 const route = useRoute()
 
 onMounted(async () => {
-  const env = getEnv()
   const url = new URL('rooms/' + route.params.room_id + '/players', env.apiUrl)
   const resp = await fetch(url, {
     method: 'POST',
@@ -29,6 +30,32 @@ onMounted(async () => {
   room.value.id = route.params.room_id as string
   room.value.players = respBody.data.players
 })
+
+onMounted(() => {
+  // Connection opened
+  ws.addEventListener('open', () => {
+    ws.send('Hello Server!')
+  })
+
+  // Listen for messages
+  ws.addEventListener('message', (event) => {
+    console.log('Message from server:', event.data)
+  })
+
+  // Handle errors
+  ws.addEventListener('error', (event) => {
+    console.error('Webws error:', event)
+  })
+
+  // Handle disconnection
+  ws.addEventListener('close', (event) => {
+    if (event.wasClean) {
+      console.log(`Closed cleanly, code=${event.code}, reason=${event.reason}`)
+    } else {
+      console.log('Connection died')
+    }
+  })
+})
 </script>
 
 <template>
@@ -42,7 +69,7 @@ onMounted(async () => {
           <h2 class="col-12">Room ID: {{ room.id }}</h2>
           <div class="col-12">
             <div class="row">
-              <div class="col-auto">Invite link:</div>
+              <div class="col-auto d-flex align-items-center">Invite link:</div>
               <div class="col">
                 <input class="form-control" type="text" readonly :value="curUrl" />
               </div>
