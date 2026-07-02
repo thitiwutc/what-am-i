@@ -43,6 +43,7 @@ func main() {
 
 	roomGroup := api.Group("/rooms")
 	roomGroup.Post("/", room.CreateRoomHandler(&lgr, roomRepo))
+	roomGroup.Post("/:room_id/players", room.JoinRoomHandler(&lgr, roomRepo))
 
 	log.Fatal().Msg(app.Listen(":3000").Error())
 }

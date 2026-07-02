@@ -3,11 +3,15 @@ package room
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	"github.com/thitiwutc/what-am-i/server/internal/player"
 )
+
+var ErrRoomNotFound = errors.New("room not found")
 
 type RoomRepository struct {
 	rooms map[string]*Room
@@ -37,7 +41,7 @@ func (r *RoomRepository) Create() (*Room, error) {
 		}
 		room := Room{
 			ID:      rid,
-			Players: map[uuid.UUID]struct{}{},
+			Players: make(map[uuid.UUID]player.Player),
 		}
 		r.rooms[rid] = &room
 
@@ -45,4 +49,24 @@ func (r *RoomRepository) Create() (*Room, error) {
 	}
 
 	return nil, fmt.Errorf("unable to create room with unique id")
+}
+
+func (r *RoomRepository) FindByID(id string) (*Room, error) {
+	room, exists := r.rooms[id]
+	if !exists {
+		return nil, ErrRoomNotFound
+	}
+
+	return room, nil
+}
+
+func (r *RoomRepository) Update(room *Room) error {
+	_, exists := r.rooms[room.ID]
+	if !exists {
+		return ErrRoomNotFound
+	}
+
+	r.rooms[room.ID] = room
+
+	return nil
 }
