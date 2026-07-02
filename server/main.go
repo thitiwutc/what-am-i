@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/thitiwutc/what-am-i/server/internal/room"
 )
 
 func main() {
@@ -24,6 +25,11 @@ func main() {
 	app.Get(healthcheck.LivenessEndpoint, healthcheck.New())
 	app.Get(healthcheck.ReadinessEndpoint, healthcheck.New())
 	app.Get(healthcheck.StartupEndpoint, healthcheck.New())
+
+	roomRepo := room.NewRoomRepository(&lgr)
+
+	roomGroup := app.Group("/rooms")
+	roomGroup.Post("/", room.CreateRoomHandler(&lgr, roomRepo))
 
 	log.Fatal().Msg(app.Listen(":3000").Error())
 }
