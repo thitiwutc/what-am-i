@@ -24,8 +24,9 @@ func main() {
 		With().
 		Timestamp().
 		Logger()
+	validate := validator.New()
 	app := fiber.New(fiber.Config{
-		StructValidator: &structValidator{validate: validator.New()},
+		StructValidator: &structValidator{validate: validate},
 	})
 
 	// Middlewares
@@ -44,10 +45,9 @@ func main() {
 
 	roomGroup := api.Group("/rooms")
 	roomGroup.Post("/", game.CreateRoomHandler(&lgr, roomRepo))
-	roomGroup.Post("/:room_id/players", game.JoinRoomHandler(&lgr, roomRepo))
 
 	// Websocket
-	api.Get("/ws", websocket.New(game.GameHandler(&lgr)))
+	api.Get("/ws", websocket.New(game.GameHandler(validate, &lgr, roomRepo)))
 
 	log.Fatal().Msg(app.Listen(":3000").Error())
 }

@@ -3,7 +3,7 @@ package game
 type CommandType int8
 
 const (
-	Subscribe CommandType = iota + 1
+	JoinRoom CommandType = iota + 1
 )
 
 // Command is used for deserializing message via websocket protocol.
@@ -11,7 +11,8 @@ type Command struct {
 	Type CommandType `json:"type"`
 }
 
-type SubscribeCommand struct {
+type JoinRoomCommand struct {
 	Command
-	Payload string `json:"payload"`
+	RoomID     string `json:"room_id" validate:"required,len=4"`
+	PlayerName string `json:"player_name" validate:"max=20"`
 }

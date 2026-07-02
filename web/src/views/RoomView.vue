@@ -30,7 +30,14 @@ onMounted(async () => {
 
   // Listen for messages
   ws.addEventListener('message', (event) => {
-    console.log('Message from server:', event.data)
+    console.log('Received websocket message:', event.data)
+    const roomState = JSON.parse(event.data)
+    console.log({ roomState })
+    // Update room state
+    room.value = {
+      id: roomState.id,
+      players: roomState.players,
+    }
   })
 
   // Handle errors
