@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/healthcheck"
@@ -18,7 +19,9 @@ func main() {
 		With().
 		Timestamp().
 		Logger()
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		StructValidator: &structValidator{validate: validator.New()},
+	})
 
 	// Middlewares
 	app.Use(logger.New())
@@ -38,4 +41,13 @@ func main() {
 	roomGroup.Post("/", room.CreateRoomHandler(&lgr, roomRepo))
 
 	log.Fatal().Msg(app.Listen(":3000").Error())
+}
+
+type structValidator struct {
+	validate *validator.Validate
+}
+
+// Validator needs to implement the Validate method
+func (v *structValidator) Validate(out any) error {
+	return v.validate.Struct(out)
 }
