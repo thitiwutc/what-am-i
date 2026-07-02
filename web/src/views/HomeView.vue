@@ -1,31 +1,19 @@
 <script setup lang="ts">
 import { getEnv } from '@/env'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 async function createRoom() {
-  console.debug('Create room')
   const env = getEnv()
   const url = new URL('rooms/', env.apiUrl)
   const resp = await fetch(url, {
     method: 'POST',
   })
-  console.debug(resp.status, resp.statusText)
   const respBody = await resp.json()
-  console.debug(respBody)
   const roomId = respBody.data.room_id
 
-  const joinRoomResp = await fetch(new URL(roomId + '/players', url), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      player_name: '',
-    }),
-  })
-  console.debug('Join Room', joinRoomResp.status)
-
-  const joinRoomRespBody = await joinRoomResp.json()
-  console.debug(joinRoomRespBody)
+  router.push('/room/' + roomId)
 }
 </script>
 
