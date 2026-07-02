@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { getEnv } from '@/env'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const pname = ref('')
 
 async function createRoom() {
   const env = getEnv()
@@ -15,6 +17,11 @@ async function createRoom() {
 
   router.push('/room/' + roomId)
 }
+
+watch(pname, (value) => {
+  console.debug('Set session storage', { key: 'pname', value })
+  sessionStorage.setItem('pname', value)
+})
 </script>
 
 <template>
@@ -31,6 +38,7 @@ async function createRoom() {
               class="form-control"
               placeholder="Player name"
               aria-label="Player name"
+              v-model="pname"
             />
           </div>
         </div>

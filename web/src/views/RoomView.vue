@@ -19,12 +19,11 @@ onMounted(async () => {
   // Connection opened
   ws.addEventListener('open', () => {
     // Join room
-    // TODO: Fill player name
     ws.send(
       JSON.stringify({
         type: CommandType.JoinRoom,
         room_id: route.params.room_id as string,
-        player_name: '',
+        player_name: sessionStorage.getItem('pname') ?? '',
       }),
     )
   })
