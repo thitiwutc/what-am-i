@@ -4,6 +4,7 @@ type CommandType int8
 
 const (
 	CmdTypeJoinRoom CommandType = iota + 1
+	CmdTypeStartGame
 )
 
 // Command is used for deserializing message via websocket protocol.

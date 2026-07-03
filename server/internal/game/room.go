@@ -50,7 +50,9 @@ type CreateRoomResponse struct {
 type State int8
 
 const (
-	StatePreGame State = iota + 1
+	StateLobby State = iota + 1
+	StatePlaying
+	StateFinished
 )
 
 func CreateRoomHandler(lgr *zerolog.Logger, rr *RoomManager) fiber.Handler {
@@ -98,7 +100,7 @@ func (r *RoomManager) Create() (*Room, error) {
 		}
 		room := Room{
 			ID:      rid,
-			State:   StatePreGame,
+			State:   StateLobby,
 			Players: make(map[uuid.UUID]Player),
 		}
 		r.rooms[rid] = &room

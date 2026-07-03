@@ -1,3 +1,5 @@
 export enum RoomState {
-  PreGame = 1,
+  Lobby = 1,
+  Playing,
+  Finished,
 }
