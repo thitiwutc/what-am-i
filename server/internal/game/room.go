@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
+	mrand "math/rand/v2"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -130,7 +132,6 @@ func (r *RoomManager) Update(room *Room) error {
 		})
 	}
 
-	// Change state when all player submit their secret words.
 	allSubmitted := true
 	for _, p := range room.Players {
 		if p.SecretWord == "" {
@@ -140,8 +141,54 @@ func (r *RoomManager) Update(room *Room) error {
 	}
 
 	r.lgr.Printf("All submitted: %t", allSubmitted)
+	// Start guessing state
 	if allSubmitted {
 		room.State = StateGuessing
+
+		shufWords := make([]Word, 0)
+		for _, p := range room.Players {
+			shufWords = append(shufWords, Word{
+				PlayerID: p.ID,
+				Value:    p.SecretWord,
+			})
+		}
+		oriWords := make([]Word, len(shufWords))
+		copy(oriWords, shufWords)
+
+		shufOk := false
+		// Shuffle so that no word belong to the player who submitted it.
+	SHUFFLE:
+		for range 100 {
+			mrand.Shuffle(len(shufWords), func(i, j int) {
+				shufWords[i], shufWords[j] = shufWords[j], shufWords[i]
+			})
+
+			// Check if the word owner get their own word.
+			for i, w := range shufWords {
+				if w.PlayerID == oriWords[i].PlayerID {
+					continue SHUFFLE
+				}
+			}
+			shufOk = true
+			break
+		}
+
+		if !shufOk {
+			return errors.New("shuffle words failed")
+		}
+
+		// Actual word shuffling
+		for i, w := range shufWords {
+			oriWords[i].Value = w.Value
+		}
+
+		log.Printf("Pre shuffle: %+v", room.Players)
+		for _, w := range oriWords {
+			p := room.Players[w.PlayerID]
+			p.SecretWord = w.Value
+			room.Players[w.PlayerID] = p
+		}
+		log.Printf("Post shuffle: %+v", room.Players)
 	}
 
 	rs := RoomState{

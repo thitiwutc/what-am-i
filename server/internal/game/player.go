@@ -10,10 +10,13 @@ const (
 )
 
 type Player struct {
-	ID         uuid.UUID
-	Name       string
-	Notify     chan<- *RoomState
-	Role       PlayerRole
+	ID     uuid.UUID
+	Name   string
+	Notify chan<- *RoomState
+	Role   PlayerRole
+
+	// SecretWord is a player summitted word in thinking phase
+	// and guessing word in guessing phase
 	SecretWord string
 }
 
