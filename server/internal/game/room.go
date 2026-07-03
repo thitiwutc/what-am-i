@@ -129,6 +129,21 @@ func (r *RoomManager) Update(room *Room) error {
 			IsSecretWordSubmitted: p.SecretWord != "",
 		})
 	}
+
+	// Change state when all player submit their secret words.
+	allSubmitted := true
+	for _, p := range room.Players {
+		if p.SecretWord == "" {
+			allSubmitted = false
+			break
+		}
+	}
+
+	r.lgr.Printf("All submitted: %t", allSubmitted)
+	if allSubmitted {
+		room.State = StateGuessing
+	}
+
 	rs := RoomState{
 		ID:      room.ID,
 		State:   room.State,
