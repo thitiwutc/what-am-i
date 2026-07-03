@@ -33,7 +33,7 @@ const (
 	StatePreGame State = iota + 1
 )
 
-func CreateRoomHandler(lgr *zerolog.Logger, rr *RoomRepository) fiber.Handler {
+func CreateRoomHandler(lgr *zerolog.Logger, rr *RoomManager) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		room, err := rr.Create()
 		if err != nil {
@@ -50,19 +50,19 @@ func CreateRoomHandler(lgr *zerolog.Logger, rr *RoomRepository) fiber.Handler {
 
 var ErrRoomNotFound = errors.New("room not found")
 
-type RoomRepository struct {
+type RoomManager struct {
 	rooms map[string]*Room
 	lgr   *zerolog.Logger
 }
 
-func NewRoomRepository(lgr *zerolog.Logger) *RoomRepository {
-	return &RoomRepository{
+func NewRoomRepository(lgr *zerolog.Logger) *RoomManager {
+	return &RoomManager{
 		rooms: make(map[string]*Room),
 		lgr:   lgr,
 	}
 }
 
-func (r *RoomRepository) Create() (*Room, error) {
+func (r *RoomManager) Create() (*Room, error) {
 	// Try to create room with unique ID 3 times.
 	for range 3 {
 		buf := make([]byte, 2)
@@ -89,7 +89,7 @@ func (r *RoomRepository) Create() (*Room, error) {
 	return nil, fmt.Errorf("unable to create room with unique id")
 }
 
-func (r *RoomRepository) FindByID(id string) (*Room, error) {
+func (r *RoomManager) FindByID(id string) (*Room, error) {
 	room, exists := r.rooms[id]
 	if !exists {
 		return nil, ErrRoomNotFound
@@ -98,7 +98,7 @@ func (r *RoomRepository) FindByID(id string) (*Room, error) {
 	return room, nil
 }
 
-func (r *RoomRepository) Update(room *Room) error {
+func (r *RoomManager) Update(room *Room) error {
 	_, exists := r.rooms[room.ID]
 	if !exists {
 		return ErrRoomNotFound

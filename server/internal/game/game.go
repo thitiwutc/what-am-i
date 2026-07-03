@@ -14,7 +14,7 @@ import (
 func GameHandler(
 	validator *validator.Validate,
 	lgr *zerolog.Logger,
-	rr *RoomRepository,
+	rr *RoomManager,
 ) func(*websocket.Conn) {
 	return func(c *websocket.Conn) {
 		lgr.Info().Msg("Upgraded protocol to websocket")
