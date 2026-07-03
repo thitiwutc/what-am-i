@@ -8,7 +8,6 @@ import (
 	"github.com/gofiber/contrib/v3/websocket"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
-	"github.com/thitiwutc/what-am-i/server/internal/util"
 )
 
 func GameHandler(
@@ -110,20 +109,12 @@ func GameHandler(
 				}
 
 				notify = make(chan *RoomState, 1)
-				p := Player{
-					ID:     uuid.New(),
-					Name:   cmd.PlayerName,
-					Notify: notify,
-				}
-				pid = p.ID
+				p := room.addPlayer(cmd.PlayerName, notify)
 				roomId = room.ID
-				if p.Name == "" {
-					p.Name = util.GeneratePlayerName()
-				}
-				room.Players[p.ID] = p
+				pid = p.ID
+				lgr := lgr.With().Str("pid", p.ID.String()).Logger()
 
 				go func() {
-					lgr := lgr.With().Str("pid", p.ID.String()).Logger()
 					// Waiting for notification
 					for r := range notify {
 						lgr.Print("Room state changed")
@@ -156,6 +147,16 @@ func GameHandler(
 					})
 					continue
 				}
+
+				c.WriteJSON(JoinRoomResultEvent{
+					Event: Event{Type: EvtJoinRoomResult},
+					Player: PlayerState{
+						ID:   p.ID,
+						Name: p.Name,
+						Role: p.Role,
+					},
+				})
+				lgr.Info().Msg("Sent join room result event")
 			default:
 				errMsg := "unknown command type: " + strconv.Itoa(int(cmd.Type))
 				lgr.Error().Msg(errMsg)

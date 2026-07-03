@@ -9,12 +9,32 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	"github.com/thitiwutc/what-am-i/server/internal/util"
 )
 
 type Room struct {
 	ID      string
 	State   State
 	Players map[uuid.UUID]Player
+}
+
+func (r *Room) addPlayer(name string, notify chan<- *RoomState) *Player {
+	p := Player{
+		ID:     uuid.New(),
+		Name:   name,
+		Notify: notify,
+		Role:   RoleParticipant,
+	}
+	if p.Name == "" {
+		p.Name = util.GeneratePlayerName()
+	}
+	if len(r.Players) == 0 {
+		p.Role = RoleHost
+	}
+
+	r.Players[p.ID] = p
+
+	return &p
 }
 
 type RoomState struct {
@@ -111,6 +131,7 @@ func (r *RoomManager) Update(room *Room) error {
 		ps = append(ps, PlayerState{
 			ID:   p.ID,
 			Name: p.Name,
+			Role: p.Role,
 		})
 	}
 	rs := RoomState{

@@ -13,6 +13,6 @@ type Command struct {
 
 type JoinRoomCommand struct {
 	Command
-	RoomID     string `json:"room_id" validate:"required,len=4"`
-	PlayerName string `json:"player_name" validate:"max=20"`
+	RoomID     string `json:"rid" validate:"required,len=4"`
+	PlayerName string `json:"pname" validate:"max=20"`
 }

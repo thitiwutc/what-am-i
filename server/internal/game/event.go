@@ -5,6 +5,7 @@ type EventType int8
 const (
 	EvtError EventType = iota
 	EvtRoomState
+	EvtJoinRoomResult
 )
 
 // Event is pushed to client via websocket connection.
@@ -20,4 +21,9 @@ type ErrorEvent struct {
 type RoomStateEvent struct {
 	Event
 	RoomState RoomState `json:"room_state"`
+}
+
+type JoinRoomResultEvent struct {
+	Event
+	Player PlayerState `json:"player"`
 }

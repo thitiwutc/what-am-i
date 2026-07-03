@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { CommandType } from '@/command-type'
+import { CommandType } from '@/types/command-type'
 import { getEnv } from '@/env'
-import { EventType } from '@/event-type'
+import { EventType } from '@/types/event-type'
 import type { Room } from '@/types/room'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import type { Player } from '@/types/player'
+import { Role } from '@/types/role-type'
 
 const env = getEnv()
 const ws = new WebSocket(new URL('ws', env.apiUrl))
@@ -13,23 +15,30 @@ const room = ref<Room>({
   id: '',
   players: [],
 })
+const player = ref<Player>({
+  id: '',
+  name: '',
+  role: Role.PARTICIPANT,
+})
 const route = useRoute()
+
+watch(player, console.log)
 
 onMounted(async () => {
   // Connection opened
-  ws.addEventListener('open', () => {
+  ws.onopen = function () {
     // Join room
     ws.send(
       JSON.stringify({
         type: CommandType.JoinRoom,
-        room_id: route.params.room_id as string,
-        player_name: sessionStorage.getItem('pname') ?? '',
+        rid: route.params.room_id as string,
+        pname: sessionStorage.getItem('pname') ?? '',
       }),
     )
-  })
+  }
 
   // Listen for messages
-  ws.addEventListener('message', (event) => {
+  ws.onmessage = function (event) {
     console.log('Received websocket message:', event.data)
     const serverEvent = JSON.parse(event.data)
     console.log({ serverEvent })
@@ -44,22 +53,25 @@ onMounted(async () => {
           players: serverEvent.room_state.players,
         }
         break
+      case EventType.JoinRoomResult:
+        player.value = serverEvent.player
+        break
     }
-  })
+  }
 
   // Handle errors
-  ws.addEventListener('error', (event) => {
+  ws.onerror = function (event) {
     console.error('Webws error:', event)
-  })
+  }
 
   // Handle disconnection
-  ws.addEventListener('close', (event) => {
+  ws.onclose = function (event) {
     if (event.wasClean) {
       console.log(`Closed cleanly, code=${event.code}, reason=${event.reason}`)
     } else {
       console.log('Connection died')
     }
-  })
+  }
 })
 
 onUnmounted(() => {
@@ -91,10 +103,21 @@ onUnmounted(() => {
                 <b>{{ room.players.length > 1 ? 'Players' : 'Players' }}</b>
               </div>
               <div class="col-12" v-for="player in room.players" :key="player.id">
-                {{ player.name }}
+                <div v-if="player.role === Role.HOST">
+                  {{ player.name }}
+                  <i class="bi bi-yin-yang"></i>
+                </div>
+                <div v-else>
+                  {{ player.name }}
+                </div>
               </div>
               <div class="div d-flex justify-content-end">
-                <button class="btn btn-primary">Start</button>
+                <button
+                  class="btn btn-primary"
+                  :disabled="room.players.length < 2 || player.role !== Role.HOST"
+                >
+                  Start
+                </button>
               </div>
             </div>
           </div>
