@@ -157,6 +157,125 @@ func GameHandler(
 					},
 				})
 				lgr.Info().Msg("Sent join room result event")
+			case CmdTypeStartGame:
+				cmd := new(StartGameCommand)
+				err = json.Unmarshal(msg, cmd)
+				if err != nil {
+					lgr.Error().Err(err).Msg("JSON Unmarshal websocket message failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				err = validator.Struct(cmd)
+				if err != nil {
+					const errMsg = "Invalid command data"
+					lgr.Error().Err(err).Msg(errMsg)
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: errMsg,
+					})
+					continue
+				}
+
+				room, err := rr.FindByID(cmd.RoomID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Find room failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				if len(room.Players) < 2 {
+					lgr.Warn().Msg("Host tries to start game with the number of players fewer than 2")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: "The number of players is less than 2",
+					})
+					continue
+				}
+
+				room.State = StateThinking
+				err = rr.Update(room)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Update room failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				lgr.Info().Str("rid", room.ID).Msg("Started game")
+			case CmdTypeSubmitSecretWord:
+				cmd := new(SubmitSecretWordCommand)
+				err = json.Unmarshal(msg, cmd)
+				if err != nil {
+					lgr.Error().Err(err).Msg("JSON Unmarshal websocket message failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				err = validator.Struct(cmd)
+				if err != nil {
+					const errMsg = "Invalid command data"
+					lgr.Error().Err(err).Msg(errMsg)
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: errMsg,
+					})
+					continue
+				}
+
+				lgr := lgr.With().
+					Str("word", cmd.Word).
+					Str("rid", cmd.RoomID).
+					Str("pid", cmd.PlayerID.String()).
+					Logger()
+
+				lgr.Info().
+					Msg("Received submit secret word command")
+
+				room, err := rr.FindByID(cmd.RoomID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Find room failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				p, exists := room.Players[cmd.PlayerID]
+				if !exists {
+					lgr.Error().Err(err).Msg("Player not in the room")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: "Player not in the room!",
+					})
+					continue
+				}
+
+				p.SecretWord = cmd.Word
+				room.Players[cmd.PlayerID] = p
+
+				err = rr.Update(room)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Update room failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
 			default:
 				errMsg := "unknown command type: " + strconv.Itoa(int(cmd.Type))
 				lgr.Error().Msg(errMsg)

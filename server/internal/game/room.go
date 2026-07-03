@@ -47,14 +47,6 @@ type CreateRoomResponse struct {
 	RoomID string `json:"room_id"`
 }
 
-type State int8
-
-const (
-	StateLobby State = iota + 1
-	StatePlaying
-	StateFinished
-)
-
 func CreateRoomHandler(lgr *zerolog.Logger, rr *RoomManager) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		room, err := rr.Create()
@@ -131,9 +123,10 @@ func (r *RoomManager) Update(room *Room) error {
 	ps := make([]PlayerState, 0, len(room.Players))
 	for _, p := range room.Players {
 		ps = append(ps, PlayerState{
-			ID:   p.ID,
-			Name: p.Name,
-			Role: p.Role,
+			ID:                    p.ID,
+			Name:                  p.Name,
+			Role:                  p.Role,
+			IsSecretWordSubmitted: p.SecretWord != "",
 		})
 	}
 	rs := RoomState{

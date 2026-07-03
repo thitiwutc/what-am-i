@@ -1,7 +1,8 @@
-import type { RoleType } from './role-type'
+import type { Role } from './role-type'
 
 export type Player = {
   id: string
   name: string
-  role: RoleType
+  role: Role
+  isSecretWordSubmitted: boolean
 }
