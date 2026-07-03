@@ -39,7 +39,7 @@ func GameHandler(
 					if err != nil {
 						lgr.Error().Err(err).Msg("Find room failed")
 					} else {
-						delete(room.Players, pid)
+						room.Players.Delete(pid)
 					}
 
 					err = rr.Update(room)
@@ -131,9 +131,10 @@ func GameHandler(
 							Event: Event{
 								Type: EvtRoomState,
 							},
-							ID:      r.ID,
-							State:   r.State,
-							Players: players,
+							ID:             r.ID,
+							State:          r.State,
+							Players:        players,
+							ActivePlayerID: r.ActivePlayerID,
 						}
 						b, err := json.Marshal(ev)
 						if err != nil {
@@ -264,8 +265,8 @@ func GameHandler(
 					continue
 				}
 
-				p, exists := room.Players[cmd.PlayerID]
-				if !exists {
+				p, err := room.Players.FindByID(cmd.PlayerID)
+				if err != nil {
 					lgr.Error().Err(err).Msg("Player not in the room")
 					c.WriteJSON(ErrorEvent{
 						Event: Event{Type: EvtError},
@@ -275,7 +276,7 @@ func GameHandler(
 				}
 
 				p.SecretWord = cmd.Word
-				room.Players[cmd.PlayerID] = p
+				room.Players = append(room.Players, p)
 
 				err = rr.Update(room)
 				if err != nil {

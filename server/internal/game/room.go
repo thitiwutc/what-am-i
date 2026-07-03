@@ -15,9 +15,10 @@ import (
 )
 
 type Room struct {
-	ID      string
-	State   State
-	Players map[uuid.UUID]*Player
+	ID              string
+	State           State
+	Players         Players
+	ActivePlayerIdx int
 }
 
 func (r *Room) addPlayer(name string, notify chan<- *RoomState) *Player {
@@ -34,15 +35,16 @@ func (r *Room) addPlayer(name string, notify chan<- *RoomState) *Player {
 		p.Role = RoleHost
 	}
 
-	r.Players[p.ID] = &p
+	r.Players = append(r.Players, &p)
 
 	return &p
 }
 
 type RoomState struct {
-	ID      string                    `json:"id"`
-	State   State                     `json:"state"`
-	Players map[uuid.UUID]PlayerState `json:"players"`
+	ID             string                    `json:"id"`
+	State          State                     `json:"state"`
+	Players        map[uuid.UUID]PlayerState `json:"players"`
+	ActivePlayerID uuid.UUID                 `json:"active_player_id"`
 }
 
 type CreateRoomResponse struct {
@@ -93,9 +95,10 @@ func (r *RoomManager) Create() (*Room, error) {
 			continue
 		}
 		room := Room{
-			ID:      rid,
-			State:   StateLobby,
-			Players: make(map[uuid.UUID]*Player),
+			ID:              rid,
+			State:           StateLobby,
+			Players:         nil,
+			ActivePlayerIdx: 0,
 		}
 		r.rooms[rid] = &room
 
@@ -173,10 +176,16 @@ func (r *RoomManager) Update(room *Room) error {
 		}
 
 		log.Printf("Pre shuffle: %+v", room.Players)
-		for _, w := range oriWords {
-			room.Players[w.PlayerID].SecretWord = w.Value
+		for i, w := range oriWords {
+			room.Players[i].SecretWord = w.Value
 		}
 		log.Printf("Post shuffle: %+v", room.Players)
+
+		// Shuffle players for random turn order.
+		mrand.Shuffle(len(room.Players), func(i, j int) {
+			room.Players[i], room.Players[j] = room.Players[j], room.Players[i]
+		})
+		r.lgr.Printf("Shuffled players: %+v", room.Players)
 	}
 
 	ps := make(map[uuid.UUID]PlayerState)
@@ -191,9 +200,10 @@ func (r *RoomManager) Update(room *Room) error {
 	}
 
 	rs := RoomState{
-		ID:      room.ID,
-		State:   room.State,
-		Players: ps,
+		ID:             room.ID,
+		State:          room.State,
+		Players:        ps,
+		ActivePlayerID: room.Players[room.ActivePlayerIdx].ID,
 	}
 
 	// Notify each player in the room.

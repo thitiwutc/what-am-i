@@ -1,6 +1,12 @@
 package game
 
-import "github.com/google/uuid"
+import (
+	"errors"
+
+	"github.com/google/uuid"
+)
+
+var ErrPlayerNotFound = errors.New("player not found")
 
 type PlayerRole int8
 
@@ -26,4 +32,34 @@ type PlayerState struct {
 	Role                  PlayerRole `json:"role"`
 	IsSecretWordSubmitted bool       `json:"isws"`
 	SecretWord            string     `json:"secret_word,omitempty"`
+}
+
+type Players []*Player
+
+func (ps Players) FindByID(id uuid.UUID) (*Player, error) {
+	for _, p := range ps {
+		if p.ID == id {
+			return p, nil
+		}
+	}
+
+	return nil, ErrPlayerNotFound
+}
+
+func (ps Players) Delete(id uuid.UUID) error {
+	foundIdx := -1
+	for i, p := range ps {
+		if p.ID == id {
+			foundIdx = i
+			break
+		}
+	}
+
+	if foundIdx < 0 {
+		return ErrPlayerNotFound
+	}
+
+	ps = append(ps[:foundIdx], ps[foundIdx+1:]...)
+
+	return nil
 }
