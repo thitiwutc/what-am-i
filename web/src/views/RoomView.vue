@@ -174,14 +174,18 @@ function submitSecretWord(ev: Event) {
               <div class="col-12">
                 <b>{{ room.players.length > 1 ? 'Players' : 'Players' }}</b>
               </div>
-              <div class="col-12" v-for="player in room.players" :key="player.id">
-                <div v-if="player.role === Role.HOST">
-                  {{ player.name }}
-                  <i class="bi bi-yin-yang"></i>
-                </div>
-                <div v-else>
-                  {{ player.name }}
-                </div>
+              <div class="col-12">
+                <ul>
+                  <li v-for="player in room.players" :key="player.id">
+                    <div v-if="player.role === Role.HOST">
+                      {{ player.name }}
+                      <i class="bi bi-yin-yang"></i>
+                    </div>
+                    <div v-else>
+                      {{ player.name }}
+                    </div>
+                  </li>
+                </ul>
               </div>
               <div class="div d-flex justify-content-end">
                 <button
