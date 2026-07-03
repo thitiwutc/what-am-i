@@ -118,11 +118,22 @@ func GameHandler(
 					// Waiting for notification
 					for r := range notify {
 						lgr.Print("Room state changed")
+
+						players := make([]PlayerState, 0, len(r.Players))
+						for _, p := range r.Players {
+							// Hide the secret word belong to the player themselves.
+							if p.ID == pid {
+								p.SecretWord = ""
+							}
+							players = append(players, p)
+						}
 						ev := RoomStateEvent{
 							Event: Event{
 								Type: EvtRoomState,
 							},
-							RoomState: *r,
+							ID:      r.ID,
+							State:   r.State,
+							Players: players,
 						}
 						b, err := json.Marshal(ev)
 						if err != nil {

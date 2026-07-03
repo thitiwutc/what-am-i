@@ -59,7 +59,7 @@ onMounted(async () => {
   ws.onmessage = function (event) {
     console.log('Received websocket message:', event.data)
     const serverEvent = JSON.parse(event.data)
-    console.debug({ serverEvent })
+    console.debug({ websocketMsg: serverEvent })
     switch (serverEvent.type) {
       case EventType.Error:
         console.error(serverEvent.error)
@@ -67,9 +67,9 @@ onMounted(async () => {
       case EventType.RoomState:
         // Update room state
         room.value = {
-          id: serverEvent.room_state.id,
-          state: serverEvent.room_state.state,
-          players: serverEvent.room_state.players.map((p: PlayerState) => ({
+          id: serverEvent.id,
+          state: serverEvent.state,
+          players: serverEvent.players.map((p: PlayerState) => ({
             id: p.id,
             name: p.name,
             role: p.role,

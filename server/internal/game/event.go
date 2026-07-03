@@ -20,7 +20,9 @@ type ErrorEvent struct {
 
 type RoomStateEvent struct {
 	Event
-	RoomState RoomState `json:"room_state"`
+	ID      string        `json:"id"`
+	State   State         `json:"state"`
+	Players []PlayerState `json:"players"`
 }
 
 type JoinRoomResultEvent struct {

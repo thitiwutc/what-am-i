@@ -25,4 +25,5 @@ type PlayerState struct {
 	Name                  string     `json:"name"`
 	Role                  PlayerRole `json:"role"`
 	IsSecretWordSubmitted bool       `json:"isws"`
+	SecretWord            string     `json:"secret_word,omitempty"`
 }

@@ -17,7 +17,7 @@ import (
 type Room struct {
 	ID      string
 	State   State
-	Players map[uuid.UUID]Player
+	Players map[uuid.UUID]*Player
 }
 
 func (r *Room) addPlayer(name string, notify chan<- *RoomState) *Player {
@@ -34,15 +34,15 @@ func (r *Room) addPlayer(name string, notify chan<- *RoomState) *Player {
 		p.Role = RoleHost
 	}
 
-	r.Players[p.ID] = p
+	r.Players[p.ID] = &p
 
 	return &p
 }
 
 type RoomState struct {
-	ID      string        `json:"id"`
-	State   State         `json:"state"`
-	Players []PlayerState `json:"players"`
+	ID      string                    `json:"id"`
+	State   State                     `json:"state"`
+	Players map[uuid.UUID]PlayerState `json:"players"`
 }
 
 type CreateRoomResponse struct {
@@ -95,7 +95,7 @@ func (r *RoomManager) Create() (*Room, error) {
 		room := Room{
 			ID:      rid,
 			State:   StateLobby,
-			Players: make(map[uuid.UUID]Player),
+			Players: make(map[uuid.UUID]*Player),
 		}
 		r.rooms[rid] = &room
 
@@ -121,16 +121,6 @@ func (r *RoomManager) Update(room *Room) error {
 	}
 
 	r.rooms[room.ID] = room
-
-	ps := make([]PlayerState, 0, len(room.Players))
-	for _, p := range room.Players {
-		ps = append(ps, PlayerState{
-			ID:                    p.ID,
-			Name:                  p.Name,
-			Role:                  p.Role,
-			IsSecretWordSubmitted: p.SecretWord != "",
-		})
-	}
 
 	allSubmitted := true
 	for _, p := range room.Players {
@@ -184,11 +174,20 @@ func (r *RoomManager) Update(room *Room) error {
 
 		log.Printf("Pre shuffle: %+v", room.Players)
 		for _, w := range oriWords {
-			p := room.Players[w.PlayerID]
-			p.SecretWord = w.Value
-			room.Players[w.PlayerID] = p
+			room.Players[w.PlayerID].SecretWord = w.Value
 		}
 		log.Printf("Post shuffle: %+v", room.Players)
+	}
+
+	ps := make(map[uuid.UUID]PlayerState)
+	for _, p := range room.Players {
+		ps[p.ID] = PlayerState{
+			ID:                    p.ID,
+			Name:                  p.Name,
+			Role:                  p.Role,
+			IsSecretWordSubmitted: p.SecretWord != "",
+			SecretWord:            p.SecretWord,
+		}
 	}
 
 	rs := RoomState{
