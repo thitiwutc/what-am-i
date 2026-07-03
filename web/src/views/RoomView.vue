@@ -39,6 +39,7 @@ const player = computed((): Player => {
   return found
 })
 const secretWord = ref('')
+const inviteLinkCopied = ref(false)
 const route = useRoute()
 
 onMounted(async () => {
@@ -102,6 +103,17 @@ onUnmounted(() => {
   ws.close()
 })
 
+async function copyInviteLink() {
+  const type = 'text/plain'
+  const clipboardItemData = {
+    [type]: curUrl,
+  }
+  const clipboardItem = new ClipboardItem(clipboardItemData)
+  await navigator.clipboard.write([clipboardItem])
+
+  inviteLinkCopied.value = true
+}
+
 function startGame() {
   console.debug('Called startGame')
   ws.send(
@@ -137,7 +149,7 @@ function submitSecretWord(ev: Event) {
   <div class="container d-flex justify-content-center align-items-center vh-100">
     <div v-if="room.state === RoomState.Lobby" class="row w-100 justify-content-center">
       <div
-        class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 shadow p-3 rounded border"
+        class="col-12 col-sm-12 col-md-10 col-lg-8 col-xl-6 shadow p-3 rounded border"
         style="background: white"
       >
         <div class="row gy-2">
@@ -145,8 +157,15 @@ function submitSecretWord(ev: Event) {
           <div class="col-12">
             <div class="row">
               <div class="col-auto d-flex align-items-center">Invite link:</div>
-              <div class="col">
+              <div class="col input-group">
                 <input class="form-control" type="text" readonly :value="curUrl" />
+                <span class="input-group-text">
+                  <i
+                    :class="inviteLinkCopied ? 'bi bi-clipboard-check-fill' : 'bi bi-clipboard'"
+                    style="cursor: pointer"
+                    @click="copyInviteLink"
+                  ></i>
+                </span>
               </div>
             </div>
           </div>
@@ -181,7 +200,7 @@ function submitSecretWord(ev: Event) {
 
     <!-- Playing state -->
     <div class="row justify-content-center" v-else-if="room.state === RoomState.Thinking">
-      <div class="col rounded border" style="background: white">
+      <div class="col-10 p-3 rounded border" style="background: white">
         <h3 v-if="player.isSecretWordSubmitted">
           Waiting for other players to submit their secret words
         </h3>
