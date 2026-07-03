@@ -7,12 +7,14 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Player } from '@/types/player'
 import { Role } from '@/types/role-type'
+import { RoomState } from '@/types/room-state'
 
 const env = getEnv()
 const ws = new WebSocket(new URL('ws', env.apiUrl))
 const curUrl = window.location.href
 const room = ref<Room>({
   id: '',
+  state: RoomState.PreGame,
   players: [],
 })
 const player = ref<Player>({
@@ -50,6 +52,7 @@ onMounted(async () => {
         // Update room state
         room.value = {
           id: serverEvent.room_state.id,
+          state: serverEvent.room_state.state,
           players: serverEvent.room_state.players,
         }
         break
@@ -82,7 +85,7 @@ onUnmounted(() => {
 
 <template>
   <div class="container d-flex justify-content-center align-items-center vh-100">
-    <div class="row w-100 justify-content-center">
+    <div v-if="room.state === RoomState.PreGame" class="row w-100 justify-content-center">
       <div
         class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 shadow p-3 rounded border"
         style="background: white"
