@@ -8,7 +8,8 @@ import { useRoute } from 'vue-router'
 import type { Player } from '@/types/player'
 import { Role } from '@/types/role-type'
 import { RoomState } from '@/types/room-state'
-import type { PlayerState } from '@/types/player-state'
+import { Answer } from '@/types/answer-type'
+import { ActionType } from '@/types/action-type'
 
 const env = getEnv()
 const ws = new WebSocket(new URL('ws', env.apiUrl))
@@ -17,6 +18,15 @@ const room = ref<Room>({
   id: '',
   state: RoomState.Lobby,
   players: [],
+  active_player: {
+    id: '',
+    name: '',
+    role: Role.HOST,
+    secret_word: '',
+    isws: false,
+    actions: [],
+  },
+  active_action: null,
 })
 const pid = ref('')
 const player = computed((): Player => {
@@ -24,7 +34,9 @@ const player = computed((): Player => {
     id: '',
     name: '',
     role: Role.PARTICIPANT,
-    isSecretWordSubmitted: false,
+    secret_word: '',
+    isws: false,
+    actions: [],
   }
   if (!pid.value) {
     return zeroValuePlayer
@@ -35,11 +47,18 @@ const player = computed((): Player => {
     return zeroValuePlayer
   }
 
-  console.log({ found })
-  return found
+  return {
+    id: found.id,
+    name: found.name,
+    role: found.role,
+    secret_word: found.secret_word,
+    isws: found.isws,
+    actions: found.actions,
+  }
 })
 const secretWord = ref('')
 const inviteLinkCopied = ref(false)
+const askGuessText = ref('')
 const route = useRoute()
 
 onMounted(async () => {
@@ -66,16 +85,7 @@ onMounted(async () => {
         break
       case EventType.RoomState:
         // Update room state
-        room.value = {
-          id: serverEvent.id,
-          state: serverEvent.state,
-          players: serverEvent.players.map((p: PlayerState) => ({
-            id: p.id,
-            name: p.name,
-            role: p.role,
-            isSecretWordSubmitted: p.isws,
-          })),
-        }
+        room.value = serverEvent
         break
       case EventType.JoinRoomResult:
         pid.value = serverEvent.player.id
@@ -143,6 +153,37 @@ function submitSecretWord(ev: Event) {
 
   console.log(`Secret word "${secretWord.value}" submitted`)
 }
+
+function askQuestion() {
+  console.log('Ask question:', askGuessText.value)
+
+  ws.send(
+    JSON.stringify({
+      type: CommandType.AskQuestion,
+      rid: room.value.id,
+      pid: player.value.id,
+      question: askGuessText.value,
+    }),
+  )
+
+  askGuessText.value = ''
+}
+
+function answer(aid: string, val: Answer) {
+  console.log('Answer question:', askGuessText.value)
+
+  const msg = JSON.stringify({
+    type: CommandType.AnswerQuestion,
+    rid: room.value.id,
+    pid: room.value.active_player.id,
+    aid,
+    answer: val,
+  })
+  console.debug('Answer question msg', msg)
+  ws.send(msg)
+
+  askGuessText.value = ''
+}
 </script>
 
 <template>
@@ -203,41 +244,189 @@ function submitSecretWord(ev: Event) {
     </div>
 
     <!-- Playing state -->
-    <div class="row justify-content-center" v-else-if="room.state === RoomState.Thinking">
-      <div class="col-10 p-3 rounded border" style="background: white">
-        <h3 v-if="player.isSecretWordSubmitted">
-          Waiting for other players to submit their secret words
-        </h3>
-        <div v-else class="container p-3">
-          <div class="row">
-            <div class="col">
-              <input
-                class="form-control"
-                type="text"
-                v-model="secretWord"
-                @keydown="submitSecretWord"
-                :disabled="player.isSecretWordSubmitted"
-                placeholder="Secret word"
-              />
+    <div class="container" v-else-if="room.state === RoomState.Thinking">
+      <div class="row justify-content-center">
+        <div class="col-4 p-3 rounded border" style="background: white">
+          <h3 v-if="player.isws">Waiting for other players</h3>
+          <div v-else class="container p-3">
+            <div class="row">
+              <div class="col">
+                <input
+                  class="form-control"
+                  type="text"
+                  v-model="secretWord"
+                  @keydown="submitSecretWord"
+                  :disabled="player.isws"
+                  placeholder="Secret word"
+                />
+              </div>
+            </div>
+            <div class="row">
+              <div class="mt-1 d-flex justify-content-end">
+                <button class="btn btn-primary" @click="submitSecretWord">Submit</button>
+              </div>
             </div>
           </div>
-          <div class="row">
-            <div class="mt-1 d-flex justify-content-end">
-              <button class="btn btn-primary" @click="submitSecretWord">Submit</button>
-            </div>
+          <div class="mt-2">
+            <ul>
+              <li v-for="p in room.players" :key="p.id">
+                {{ p.name }} <i v-show="p.isws" class="bi bi-check"></i>
+              </li>
+            </ul>
           </div>
-        </div>
-        <div class="mt-2">
-          <ul>
-            <li v-for="player in room.players" :key="player.id">
-              {{ player.name }} <i v-show="player.isSecretWordSubmitted" class="bi bi-check"></i>
-            </li>
-          </ul>
         </div>
       </div>
     </div>
 
-    <div v-else-if="room.state === RoomState.Guessing">Guessing</div>
+    <!-- Guessing state -->
+    <div
+      v-else-if="room.state === RoomState.Asking || room.state === RoomState.Answering"
+      class="container"
+    >
+      <div class="row justify-content-center">
+        <div class="col-6">
+          <div class="row justify-content-center">
+            <div class="col-12">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th scope="col"></th>
+                    <th scope="col">Player</th>
+                    <th scope="col">Word</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="p in room.players" :key="p.id">
+                    <td>
+                      <i
+                        v-show="room.active_player.id === p.id"
+                        class="bi bi-arrow-right-short"
+                      ></i>
+                    </td>
+                    <td>{{ p.name }}</td>
+                    <td v-if="p.id === player.id"><i class="bi bi-eye-slash-fill"></i></td>
+                    <td v-else>{{ p.secret_word }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div
+              v-show="room.state === RoomState.Answering"
+              class="col-12 border rounded mb-2 p-3"
+              style="background: white"
+            >
+              <div v-show="room.active_player.id === player.id" class="row text-center">
+                <h4>Waiting for other players to answer</h4>
+              </div>
+              <div v-show="room.active_player.id !== player.id" class="row">
+                <div class="col-12">
+                  <b>{{ room.active_player.name }}</b>
+                </div>
+                <div v-show="room.active_action?.type === ActionType.Question" class="col-12">
+                  Question: {{ room.active_action?.value }}
+                </div>
+                <div v-show="room.active_action?.type === ActionType.Guessing" class="col-12">
+                  Guess: {{ room.active_action?.value }}
+                </div>
+                <div class="col d-flex justify-content-end">
+                  <div class="btn-group">
+                    <button
+                      class="btn btn-primary"
+                      @click="
+                        () => {
+                          answer(room.active_action?.id ?? '', Answer.Yes)
+                        }
+                      "
+                    >
+                      Yes
+                    </button>
+                    <button
+                      class="btn btn-danger"
+                      @click="
+                        () => {
+                          answer(room.active_action?.id ?? '', Answer.No)
+                        }
+                      "
+                    >
+                      No
+                    </button>
+                    <button
+                      class="btn btn-secondary"
+                      @click="
+                        () => {
+                          answer(room.active_action?.id ?? '', Answer.Unsure)
+                        }
+                      "
+                    >
+                      Unsure
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              v-show="room.state === RoomState.Asking"
+              class="col rounded border p-3"
+              style="background: white"
+            >
+              <div class="container">
+                <div v-show="room.active_player.id !== player.id" class="text-center">
+                  <div>
+                    Waiting for <b>{{ room.active_player.name }}</b> to ask/guess
+                  </div>
+                </div>
+                <div v-show="room.active_player.id === player.id" class="row">
+                  <div class="col-12">
+                    <!-- Ask/Guess button -->
+                    <div>Ask / Guess</div>
+                  </div>
+                  <div class="col-12">
+                    <input
+                      v-model="askGuessText"
+                      class="form-control"
+                      type="text"
+                      :disabled="room.active_player.id !== player.id"
+                    />
+                  </div>
+                  <div class="col-12 d-flex justify-content-end mt-2">
+                    <button class="btn btn-success">Guess</button>
+                    <button class="btn btn-primary ms-1" @click="askQuestion">Ask</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action logs -->
+            <div class="col-12 rounded border mt-2 p-3" style="background: white">
+              <h5>Your questions</h5>
+
+              <table class="table table-responsive table-striped-columns">
+                <thead>
+                  <tr>
+                    <th>Question</th>
+                    <th><i class="bi bi-check"></i></th>
+                    <th><i class="bi bi-x"></i></th>
+                    <th><i class="bi bi-question"></i></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="action in player.actions.filter((a) => a.type === ActionType.Question)"
+                    :key="action.id"
+                  >
+                    <td>{{ action.value }}</td>
+                    <td>{{ action.yes_count }}</td>
+                    <td>{{ action.no_count }}</td>
+                    <td>{{ action.unsure_count }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-else-if="room.state === RoomState.Finished">Finished</div>
     <div v-else>
       <h2>Invalid room state: {{ room.state }}</h2>

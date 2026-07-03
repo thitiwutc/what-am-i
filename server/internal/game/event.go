@@ -1,7 +1,5 @@
 package game
 
-import "github.com/google/uuid"
-
 type EventType int8
 
 const (
@@ -22,10 +20,11 @@ type ErrorEvent struct {
 
 type RoomStateEvent struct {
 	Event
-	ID             string        `json:"id"`
-	State          State         `json:"state"`
-	Players        []PlayerState `json:"players"`
-	ActivePlayerID uuid.UUID     `json:"active_player_id"`
+	ID           string        `json:"id"`
+	State        State         `json:"state"`
+	Players      []PlayerState `json:"players"`
+	ActivePlayer PlayerState   `json:"active_player"`
+	ActiveAction *Action       `json:"active_action"`
 }
 
 type JoinRoomResultEvent struct {

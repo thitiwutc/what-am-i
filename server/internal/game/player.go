@@ -24,6 +24,8 @@ type Player struct {
 	// SecretWord is a player summitted word in thinking phase
 	// and guessing word in guessing phase
 	SecretWord string
+
+	Actions Actions
 }
 
 type PlayerState struct {
@@ -32,6 +34,7 @@ type PlayerState struct {
 	Role                  PlayerRole `json:"role"`
 	IsSecretWordSubmitted bool       `json:"isws"`
 	SecretWord            string     `json:"secret_word,omitempty"`
+	Actions               []*Action  `json:"actions"`
 }
 
 type Players []*Player
@@ -46,7 +49,7 @@ func (ps Players) FindByID(id uuid.UUID) (*Player, error) {
 	return nil, ErrPlayerNotFound
 }
 
-func (ps Players) Delete(id uuid.UUID) error {
+func (ps Players) Delete(id uuid.UUID) (Players, error) {
 	foundIdx := -1
 	for i, p := range ps {
 		if p.ID == id {
@@ -56,10 +59,10 @@ func (ps Players) Delete(id uuid.UUID) error {
 	}
 
 	if foundIdx < 0 {
-		return ErrPlayerNotFound
+		return nil, ErrPlayerNotFound
 	}
 
 	ps = append(ps[:foundIdx], ps[foundIdx+1:]...)
 
-	return nil
+	return ps, nil
 }

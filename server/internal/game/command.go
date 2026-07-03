@@ -8,9 +8,11 @@ const (
 	CmdTypeJoinRoom CommandType = iota + 1
 	CmdTypeStartGame
 	CmdTypeSubmitSecretWord
+	CmdTypeAsk
+	CmdTypeAnswer
 )
 
-// Command is used for deserializing message via websocket protocol.
+// Command is sent by client.
 type Command struct {
 	Type CommandType `json:"type"`
 }
@@ -30,5 +32,20 @@ type SubmitSecretWordCommand struct {
 	Command
 	RoomID   string    `json:"rid" validate:"required,len=4"`
 	PlayerID uuid.UUID `json:"pid"`
-	Word     string    `json:"word" validte:"required"`
+	Word     string    `json:"word" validate:"required"`
+}
+
+type AskCommand struct {
+	Command
+	RoomID   string    `json:"rid" validate:"required,len=4"`
+	PlayerID uuid.UUID `json:"pid"`
+	Question string    `json:"question" validate:"required"`
+}
+
+type AnswerCommand struct {
+	Command
+	ActionID uuid.UUID `json:"aid"`
+	RoomID   string    `json:"rid" validate:"required,len=4"`
+	PlayerID uuid.UUID `json:"pid"`
+	Answer   Answer    `json:"answer"`
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
 	mrand "math/rand/v2"
 
 	"github.com/gofiber/fiber/v3"
@@ -19,14 +18,17 @@ type Room struct {
 	State           State
 	Players         Players
 	ActivePlayerIdx int
+	lgr             *zerolog.Logger
 }
 
 func (r *Room) addPlayer(name string, notify chan<- *RoomState) *Player {
 	p := Player{
-		ID:     uuid.New(),
-		Name:   name,
-		Notify: notify,
-		Role:   RoleParticipant,
+		ID:         uuid.New(),
+		Name:       name,
+		Notify:     notify,
+		Role:       RoleParticipant,
+		SecretWord: "",
+		Actions:    make([]*Action, 0),
 	}
 	if p.Name == "" {
 		p.Name = util.GeneratePlayerName()
@@ -40,11 +42,21 @@ func (r *Room) addPlayer(name string, notify chan<- *RoomState) *Player {
 	return &p
 }
 
+func (r *Room) NextTurn() *Player {
+	r.ActivePlayerIdx = (r.ActivePlayerIdx + 1) % len(r.Players)
+	r.lgr.Debug().
+		Int("next_active_pid", r.ActivePlayerIdx).
+		Int("pcount", len(r.Players)).
+		Msg("NextTurn called")
+	return r.Players[r.ActivePlayerIdx]
+}
+
 type RoomState struct {
-	ID             string                    `json:"id"`
-	State          State                     `json:"state"`
-	Players        map[uuid.UUID]PlayerState `json:"players"`
-	ActivePlayerID uuid.UUID                 `json:"active_player_id"`
+	ID           string                    `json:"id"`
+	State        State                     `json:"state"`
+	Players      map[uuid.UUID]PlayerState `json:"players"`
+	ActivePlayer PlayerState               `json:"active_player"`
+	ActiveAction *Action                   `json:"active_action"`
 }
 
 type CreateRoomResponse struct {
@@ -99,6 +111,7 @@ func (r *RoomManager) Create() (*Room, error) {
 			State:           StateLobby,
 			Players:         nil,
 			ActivePlayerIdx: 0,
+			lgr:             r.lgr,
 		}
 		r.rooms[rid] = &room
 
@@ -133,10 +146,12 @@ func (r *RoomManager) Update(room *Room) error {
 		}
 	}
 
-	r.lgr.Printf("All submitted: %t", allSubmitted)
+	r.lgr.Printf("All secret words submitted: %t", allSubmitted)
+	r.lgr.Printf("Room state: %s", room.State)
+	r.lgr.Printf("Room player count: %d", len(room.Players))
 	// Start guessing state
-	if allSubmitted {
-		room.State = StateGuessing
+	if allSubmitted && room.State == StateThinking {
+		room.State = StateAsking
 
 		shufWords := make([]Word, 0)
 		for _, p := range room.Players {
@@ -175,17 +190,15 @@ func (r *RoomManager) Update(room *Room) error {
 			oriWords[i].Value = w.Value
 		}
 
-		log.Printf("Pre shuffle: %+v", room.Players)
 		for i, w := range oriWords {
 			room.Players[i].SecretWord = w.Value
 		}
-		log.Printf("Post shuffle: %+v", room.Players)
 
 		// Shuffle players for random turn order.
 		mrand.Shuffle(len(room.Players), func(i, j int) {
 			room.Players[i], room.Players[j] = room.Players[j], room.Players[i]
 		})
-		r.lgr.Printf("Shuffled players: %+v", room.Players)
+		r.lgr.Debug().Int("count", len(room.Players)).Msg("Shuffled players")
 	}
 
 	ps := make(map[uuid.UUID]PlayerState)
@@ -196,14 +209,20 @@ func (r *RoomManager) Update(room *Room) error {
 			Role:                  p.Role,
 			IsSecretWordSubmitted: p.SecretWord != "",
 			SecretWord:            p.SecretWord,
+			Actions:               p.Actions,
 		}
 	}
 
+	activeActions := room.Players[room.ActivePlayerIdx].Actions
 	rs := RoomState{
-		ID:             room.ID,
-		State:          room.State,
-		Players:        ps,
-		ActivePlayerID: room.Players[room.ActivePlayerIdx].ID,
+		ID:           room.ID,
+		State:        room.State,
+		Players:      ps,
+		ActivePlayer: ps[room.Players[room.ActivePlayerIdx].ID],
+		ActiveAction: nil,
+	}
+	if len(activeActions) > 0 {
+		rs.ActiveAction = activeActions[len(activeActions)-1]
 	}
 
 	// Notify each player in the room.

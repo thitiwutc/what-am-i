@@ -3,6 +3,7 @@ package game
 import (
 	"encoding/json"
 	"strconv"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/contrib/v3/websocket"
@@ -13,7 +14,7 @@ import (
 func GameHandler(
 	validator *validator.Validate,
 	lgr *zerolog.Logger,
-	rr *RoomManager,
+	roomManager *RoomManager,
 ) func(*websocket.Conn) {
 	return func(c *websocket.Conn) {
 		lgr.Info().Msg("Upgraded protocol to websocket")
@@ -35,14 +36,19 @@ func GameHandler(
 				lgr.Error().Err(err).Msg("Websocket connection closed")
 				if roomId != "" {
 					lgr := lgr.With().Str("room_id", roomId).Logger()
-					room, err := rr.FindByID(roomId)
+					room, err := roomManager.FindByID(roomId)
 					if err != nil {
 						lgr.Error().Err(err).Msg("Find room failed")
 					} else {
-						room.Players.Delete(pid)
+						newPlayers, err := room.Players.Delete(pid)
+						if err != nil {
+							lgr.Error().Err(err).Msg("Delete player failed")
+						} else {
+							room.Players = newPlayers
+						}
 					}
 
-					err = rr.Update(room)
+					err = roomManager.Update(room)
 					if err != nil {
 						lgr.Error().Err(err).Msg("Update room failed")
 					}
@@ -98,7 +104,7 @@ func GameHandler(
 
 				lgr.Printf("JoinRoom command received: %+v", cmd)
 
-				room, err := rr.FindByID(cmd.RoomID)
+				room, err := roomManager.FindByID(cmd.RoomID)
 				if err != nil {
 					lgr.Error().Err(err).Msg("Find room failed")
 					c.WriteJSON(ErrorEvent{
@@ -131,10 +137,11 @@ func GameHandler(
 							Event: Event{
 								Type: EvtRoomState,
 							},
-							ID:             r.ID,
-							State:          r.State,
-							Players:        players,
-							ActivePlayerID: r.ActivePlayerID,
+							ID:           r.ID,
+							State:        r.State,
+							Players:      players,
+							ActivePlayer: r.ActivePlayer,
+							ActiveAction: r.ActiveAction,
 						}
 						b, err := json.Marshal(ev)
 						if err != nil {
@@ -150,7 +157,7 @@ func GameHandler(
 					}
 				}()
 
-				err = rr.Update(room)
+				err = roomManager.Update(room)
 				if err != nil {
 					lgr.Error().Err(err).Msg("Update room failed")
 					c.WriteJSON(ErrorEvent{
@@ -192,7 +199,7 @@ func GameHandler(
 					continue
 				}
 
-				room, err := rr.FindByID(cmd.RoomID)
+				room, err := roomManager.FindByID(cmd.RoomID)
 				if err != nil {
 					lgr.Error().Err(err).Msg("Find room failed")
 					c.WriteJSON(ErrorEvent{
@@ -212,7 +219,7 @@ func GameHandler(
 				}
 
 				room.State = StateThinking
-				err = rr.Update(room)
+				err = roomManager.Update(room)
 				if err != nil {
 					lgr.Error().Err(err).Msg("Update room failed")
 					c.WriteJSON(ErrorEvent{
@@ -255,7 +262,7 @@ func GameHandler(
 				lgr.Info().
 					Msg("Received submit secret word command")
 
-				room, err := rr.FindByID(cmd.RoomID)
+				room, err := roomManager.FindByID(cmd.RoomID)
 				if err != nil {
 					lgr.Error().Err(err).Msg("Find room failed")
 					c.WriteJSON(ErrorEvent{
@@ -276,9 +283,8 @@ func GameHandler(
 				}
 
 				p.SecretWord = cmd.Word
-				room.Players = append(room.Players, p)
 
-				err = rr.Update(room)
+				err = roomManager.Update(room)
 				if err != nil {
 					lgr.Error().Err(err).Msg("Update room failed")
 					c.WriteJSON(ErrorEvent{
@@ -288,6 +294,135 @@ func GameHandler(
 					continue
 				}
 
+			case CmdTypeAsk:
+				cmd := new(AskCommand)
+				err = json.Unmarshal(msg, cmd)
+				if err != nil {
+					lgr.Error().Err(err).Msg("JSON Unmarshal websocket message failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				err = validator.Struct(cmd)
+				if err != nil {
+					const errMsg = "Invalid command data"
+					lgr.Error().Err(err).Msg(errMsg)
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: errMsg,
+					})
+					continue
+				}
+
+				room, err := roomManager.FindByID(cmd.RoomID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Find room failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				p, err := room.Players.FindByID(cmd.PlayerID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Player not in the room")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: "Player not in the room!",
+					})
+					continue
+				}
+
+				p.Actions = append(p.Actions, &Action{
+					ID:          uuid.New(),
+					Type:        ActionTypeQuestion,
+					Value:       cmd.Question,
+					YesCount:    0,
+					NoCount:     0,
+					UnsureCount: 0,
+					CreatedAt:   time.Now(),
+				})
+				room.State = StateAnswering
+				roomManager.Update(room)
+			case CmdTypeAnswer:
+				cmd := new(AnswerCommand)
+				err = json.Unmarshal(msg, cmd)
+				if err != nil {
+					lgr.Error().Err(err).Msg("JSON Unmarshal websocket message failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				err = validator.Struct(cmd)
+				if err != nil {
+					const errMsg = "Invalid command data"
+					lgr.Error().Err(err).Msg(errMsg)
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: errMsg,
+					})
+					continue
+				}
+
+				room, err := roomManager.FindByID(cmd.RoomID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Find room failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				p, err := room.Players.FindByID(cmd.PlayerID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Player not in the room")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: "Player not in the room!",
+					})
+					continue
+				}
+
+				a, err := p.Actions.FindByID(cmd.ActionID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Find action failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				switch cmd.Answer {
+				case AnswerYes:
+					a.YesCount++
+				case AnswerNo:
+					a.NoCount++
+				case AnswerUnsure:
+					a.UnsureCount++
+				default:
+					errMsg := "Unknown answer: " + strconv.Itoa(int(cmd.Answer))
+					lgr.Info().Msg(errMsg)
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: errMsg,
+					})
+					continue
+				}
+
+				if a.YesCount+a.NoCount+a.UnsureCount == len(room.Players)-1 {
+					room.State = StateAsking
+					room.NextTurn()
+				}
+				roomManager.Update(room)
 			default:
 				errMsg := "unknown command type: " + strconv.Itoa(int(cmd.Type))
 				lgr.Error().Msg(errMsg)
