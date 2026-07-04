@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"math"
 	"strconv"
 	"time"
 
@@ -132,7 +133,7 @@ func GameHandler(
 						players := make([]PlayerState, 0, len(r.Players))
 						for _, p := range r.Players {
 							// Hide the secret word belong to the player themselves.
-							if p.ID == pid {
+							if p.ID == pid && !p.Guesses.IsCorrect() {
 								p.SecretWord = ""
 							}
 							players = append(players, p)
@@ -478,6 +479,93 @@ func GameHandler(
 					CreatedAt:    time.Now(),
 				})
 				room.State = StateGuessChecking
+				roomManager.Update(room)
+			case CmdTypeJudgeGuess:
+				cmd := new(JudgeGuessCommand)
+				err = json.Unmarshal(msg, cmd)
+				if err != nil {
+					lgr.Error().Err(err).Msg("JSON Unmarshal websocket message failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				err = validator.Struct(cmd)
+				if err != nil {
+					const errMsg = "Invalid command data"
+					lgr.Error().Err(err).Msg(errMsg)
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: errMsg,
+					})
+					continue
+				}
+
+				room, err := roomManager.FindByID(cmd.RoomID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Find room failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				p, err := room.Players.FindByID(cmd.PlayerID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Player not in the room")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: "Player not in the room!",
+					})
+					continue
+				}
+
+				guess, err := p.Guesses.FindByID(cmd.GuessID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Find guess failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				switch cmd.Decision {
+				case DecisionCorrect:
+					guess.CorrectCount++
+				case DesicionWrong:
+					guess.WrongCount++
+				default:
+					errMsg := "Unknown guess decision: " + strconv.Itoa(int(cmd.Decision))
+					lgr.Info().Msg(errMsg)
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: errMsg,
+					})
+					continue
+				}
+
+				if guess.CorrectCount+guess.WrongCount == len(room.Players)-1 {
+					majorPlayerCount := int(math.Round(float64(guess.CorrectCount+guess.WrongCount) / 2.0))
+					isMajorCorrect := guess.CorrectCount >= majorPlayerCount
+					lgr.Debug().
+						Int("correct_count", guess.CorrectCount).
+						Int("wrong_count", guess.WrongCount).
+						Int("majority_player_count", majorPlayerCount).
+						Msgf("Is correct for majority: %t", isMajorCorrect)
+					guess.Correct = isMajorCorrect
+					// Check if all players guessed correctly.
+					allWordsGuessed := room.Players.IsAllWordsGuessed()
+					if allWordsGuessed {
+						room.State = StateFinished
+					} else {
+						room.State = StateAskOrGuess
+						room.NextTurn()
+					}
+				}
 				roomManager.Update(room)
 			default:
 				errMsg := "unknown command type: " + strconv.Itoa(int(cmd.Type))

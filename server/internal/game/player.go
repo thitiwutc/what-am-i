@@ -26,7 +26,7 @@ type Player struct {
 	SecretWord string
 
 	Questions Questions
-	Guesses   []*Guess
+	Guesses   Guesses
 }
 
 type PlayerState struct {
@@ -36,7 +36,8 @@ type PlayerState struct {
 	IsSecretWordSubmitted bool        `json:"isws"`
 	SecretWord            string      `json:"secret_word,omitempty"`
 	Questions             []*Question `json:"questions"`
-	Guesses               []*Guess    `json:"guesses"`
+	Guesses               Guesses     `json:"guesses"`
+	IsWordGuessed         bool        `json:"is_word_guessed"`
 }
 
 type Players []*Player
@@ -67,4 +68,14 @@ func (ps Players) DeleteByID(id uuid.UUID) (Players, error) {
 	ps = append(ps[:foundIdx], ps[foundIdx+1:]...)
 
 	return ps, nil
+}
+func (ps Players) IsAllWordsGuessed() bool {
+	// Check if all words are guessed correctly.
+	for _, p := range ps {
+		if !p.Guesses.IsCorrect() {
+			return false
+		}
+	}
+
+	return true
 }

@@ -3,12 +3,13 @@ import { CommandType } from '@/types/command-type'
 import { getEnv } from '@/env'
 import { EventType } from '@/types/event-type'
 import type { Room } from '@/types/room'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Player } from '@/types/player'
 import { Role } from '@/types/role-type'
 import { RoomState } from '@/types/room-state'
-import { Answer } from '@/types/answer-type'
+import { Answer } from '@/types/answer'
+import { Desicion } from '@/types/desicion'
 
 const env = getEnv()
 const ws = new WebSocket(new URL('ws', env.apiUrl))
@@ -20,12 +21,14 @@ const room = ref<Room>({
   active_player: {
     id: '',
     name: '',
-    role: Role.HOST,
+    role: Role.PARTICIPANT,
     secret_word: '',
     isws: false,
     questions: [],
+    is_word_guessed: false,
   },
   last_question: null,
+  last_guess: null,
 })
 const pid = ref('')
 const player = computed((): Player => {
@@ -36,6 +39,7 @@ const player = computed((): Player => {
     secret_word: '',
     isws: false,
     questions: [],
+    is_word_guessed: false,
   }
   if (!pid.value) {
     return zeroValuePlayer
@@ -53,12 +57,29 @@ const player = computed((): Player => {
     secret_word: found.secret_word,
     isws: found.isws,
     questions: found.questions,
+    is_word_guessed: found.is_word_guessed,
   }
 })
 const secretWord = ref('')
 const inviteLinkCopied = ref(false)
 const askGuessText = ref('')
 const route = useRoute()
+const alertCorrectGuess = ref(false)
+
+watch(room, (room) => {
+  if (room.state == RoomState.Finished) {
+    console.log('Gate is finished. Closing websocket connection')
+    ws.close()
+  }
+})
+
+watch(player, (newPlayer) => {
+  console.debug({ player: newPlayer })
+  if (player.value.is_word_guessed && !alertCorrectGuess.value) {
+    alertCorrectGuess.value = true
+    alert('You guess the word correctly!')
+  }
+})
 
 onMounted(async () => {
   // Connection opened
@@ -168,6 +189,22 @@ function askQuestion() {
   askGuessText.value = ''
 }
 
+function answer(qid: string, val: Answer) {
+  console.log('Answer question:', askGuessText.value)
+
+  const msg = JSON.stringify({
+    type: CommandType.AnswerQuestion,
+    rid: room.value.id,
+    pid: room.value.active_player.id,
+    qid,
+    answer: val,
+  })
+  console.debug('Answer question msg', msg)
+  ws.send(msg)
+
+  askGuessText.value = ''
+}
+
 function guess() {
   console.log('Guess:', askGuessText.value)
 
@@ -183,15 +220,15 @@ function guess() {
   askGuessText.value = ''
 }
 
-function answer(qid: string, val: Answer) {
+function judgeGuess(gid: string, decision: Desicion) {
   console.log('Answer question:', askGuessText.value)
 
   const msg = JSON.stringify({
-    type: CommandType.AnswerQuestion,
+    type: CommandType.JudgeGuess,
     rid: room.value.id,
     pid: room.value.active_player.id,
-    qid,
-    answer: val,
+    gid,
+    decision,
   })
   console.debug('Answer question msg', msg)
   ws.send(msg)
@@ -311,6 +348,7 @@ function answer(qid: string, val: Answer) {
                     <th scope="col"></th>
                     <th scope="col">Player</th>
                     <th scope="col">Word</th>
+                    <th scope="col">Correct</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -322,8 +360,11 @@ function answer(qid: string, val: Answer) {
                       ></i>
                     </td>
                     <td>{{ p.name }}</td>
-                    <td v-if="p.id === player.id"><i class="bi bi-eye-slash-fill"></i></td>
+                    <td v-if="p.id === player.id && !player.is_word_guessed">
+                      <i class="bi bi-eye-slash-fill"></i>
+                    </td>
                     <td v-else>{{ p.secret_word }}</td>
+                    <td><i v-if="p.is_word_guessed" class="bi bi-check"></i></td>
                   </tr>
                 </tbody>
               </table>
@@ -377,10 +418,10 @@ function answer(qid: string, val: Answer) {
                 <div class="col d-flex justify-content-end">
                   <div class="btn-group">
                     <button
-                      class="btn btn-primary"
+                      class="btn btn-success"
                       @click="
                         () => {
-                          answer(room.last_question?.id ?? '', Answer.Yes)
+                          judgeGuess(room.last_guess?.id ?? '', Desicion.Correct)
                         }
                       "
                     >
@@ -390,7 +431,7 @@ function answer(qid: string, val: Answer) {
                       class="btn btn-danger"
                       @click="
                         () => {
-                          answer(room.last_question?.id ?? '', Answer.No)
+                          judgeGuess(room.last_guess?.id ?? '', Desicion.Wrong)
                         }
                       "
                     >

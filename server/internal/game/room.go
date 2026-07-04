@@ -42,7 +42,19 @@ func (r *Room) addPlayer(name string, notify chan<- *RoomState) *Player {
 }
 
 func (r *Room) NextTurn() *Player {
-	r.ActivePlayerIdx = (r.ActivePlayerIdx + 1) % len(r.Players)
+	if r.Players.IsAllWordsGuessed() {
+		panic("call NextTurn() when all words are guessed")
+	}
+
+	// Find the next player who has not guessed the word correctly yet.
+	for range len(r.Players) {
+		r.ActivePlayerIdx = (r.ActivePlayerIdx + 1) % len(r.Players)
+		if r.Players[r.ActivePlayerIdx].Guesses.IsCorrect() {
+			continue
+		}
+		break
+	}
+
 	r.lgr.Debug().
 		Int("next_active_pid", r.ActivePlayerIdx).
 		Int("pcount", len(r.Players)).
@@ -211,6 +223,7 @@ func (r *RoomManager) Update(room *Room) error {
 			SecretWord:            p.SecretWord,
 			Questions:             p.Questions,
 			Guesses:               p.Guesses,
+			IsWordGuessed:         p.Guesses.IsCorrect(),
 		}
 	}
 

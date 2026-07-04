@@ -15,6 +15,7 @@ type Guess struct {
 	CorrectCount int       `json:"correct_count"`
 	WrongCount   int       `json:"wrong_count"`
 	CreatedAt    time.Time `json:"created_at"`
+	Correct      bool      `json:"correct"`
 }
 
 type Guesses []*Guess
@@ -27,4 +28,14 @@ func (gs Guesses) FindByID(id uuid.UUID) (*Guess, error) {
 	}
 
 	return nil, ErrGuessNotFound
+}
+
+func (gs Guesses) IsCorrect() bool {
+	for _, guess := range gs {
+		if guess.Correct {
+			return true
+		}
+	}
+
+	return false
 }

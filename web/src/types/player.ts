@@ -10,4 +10,5 @@ export type Player = {
   // isws is true if the player submitted secret word.
   isws: boolean
   questions: Question[]
+  is_word_guessed: boolean
 }

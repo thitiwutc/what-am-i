@@ -11,6 +11,7 @@ const (
 	CmdTypeAsk
 	CmdTypeAnswerQuestion
 	CmdTypeGuess
+	CmdTypeJudgeGuess
 )
 
 // Command is sent by client.
@@ -56,4 +57,12 @@ type GuessCommand struct {
 	RoomID   string    `json:"rid" validate:"required,len=4"`
 	PlayerID uuid.UUID `json:"pid"`
 	Guess    string    `json:"guess"`
+}
+
+type JudgeGuessCommand struct {
+	Command
+	GuessID  uuid.UUID `json:"gid"`
+	RoomID   string    `json:"rid" validate:"required,len=4"`
+	PlayerID uuid.UUID `json:"pid"`
+	Decision Decision  `json:"decision"`
 }
