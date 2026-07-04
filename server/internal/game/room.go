@@ -56,6 +56,7 @@ type RoomState struct {
 	Players      map[uuid.UUID]PlayerState `json:"players"`
 	ActivePlayer PlayerState               `json:"active_player"`
 	LastQuestion *Question                 `json:"last_question"`
+	LastGuess    *Guess                    `json:"last_guess"`
 }
 
 type CreateRoomResponse struct {
@@ -150,7 +151,7 @@ func (r *RoomManager) Update(room *Room) error {
 	r.lgr.Printf("Room player count: %d", len(room.Players))
 	// Start guessing state
 	if allSubmitted && room.State == StateThinking {
-		room.State = StateAsking
+		room.State = StateAskOrGuess
 
 		shufWords := make([]Word, 0)
 		for _, p := range room.Players {
@@ -209,19 +210,25 @@ func (r *RoomManager) Update(room *Room) error {
 			IsSecretWordSubmitted: p.SecretWord != "",
 			SecretWord:            p.SecretWord,
 			Questions:             p.Questions,
+			Guesses:               p.Guesses,
 		}
 	}
 
-	activeQuestions := room.Players[room.ActivePlayerIdx].Questions
+	curPlayerQuestions := room.Players[room.ActivePlayerIdx].Questions
+	curPlayerGuesses := room.Players[room.ActivePlayerIdx].Guesses
 	rs := RoomState{
 		ID:           room.ID,
 		State:        room.State,
 		Players:      ps,
 		ActivePlayer: ps[room.Players[room.ActivePlayerIdx].ID],
 		LastQuestion: nil,
+		LastGuess:    nil,
 	}
-	if len(activeQuestions) > 0 {
-		rs.LastQuestion = activeQuestions[len(activeQuestions)-1]
+	if len(curPlayerQuestions) > 0 {
+		rs.LastQuestion = curPlayerQuestions[len(curPlayerQuestions)-1]
+	}
+	if len(curPlayerGuesses) > 0 {
+		rs.LastGuess = curPlayerGuesses[len(curPlayerGuesses)-1]
 	}
 
 	// Notify each player in the room.

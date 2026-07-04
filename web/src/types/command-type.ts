@@ -4,4 +4,5 @@ export enum CommandType {
   SubmitSecretWord,
   AskQuestion,
   AnswerQuestion,
+  Guess,
 }

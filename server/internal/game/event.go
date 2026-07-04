@@ -25,6 +25,7 @@ type RoomStateEvent struct {
 	Players      []PlayerState `json:"players"`
 	ActivePlayer PlayerState   `json:"active_player"`
 	LastQuestion *Question     `json:"last_question"`
+	LastGuess    *Guess        `json:"last_guess"`
 }
 
 type JoinRoomResultEvent struct {

@@ -36,6 +36,7 @@ type PlayerState struct {
 	IsSecretWordSubmitted bool        `json:"isws"`
 	SecretWord            string      `json:"secret_word,omitempty"`
 	Questions             []*Question `json:"questions"`
+	Guesses               []*Guess    `json:"guesses"`
 }
 
 type Players []*Player

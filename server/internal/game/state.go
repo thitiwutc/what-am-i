@@ -5,8 +5,9 @@ type State int8
 const (
 	StateLobby State = iota + 1
 	StateThinking
-	StateAsking
+	StateAskOrGuess
 	StateAnswering
+	StateGuessChecking
 	StateFinished
 )
 
@@ -16,10 +17,12 @@ func (s State) String() string {
 		return "Lobby"
 	case StateThinking:
 		return "Thinking"
-	case StateAsking:
-		return "Asking"
+	case StateAskOrGuess:
+		return "Ask or Guess"
 	case StateAnswering:
 		return "Answering"
+	case StateGuessChecking:
+		return "Guess Checking"
 	case StateFinished:
 		return "Finished"
 	default:

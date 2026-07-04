@@ -146,6 +146,7 @@ func GameHandler(
 							Players:      players,
 							ActivePlayer: r.ActivePlayer,
 							LastQuestion: r.LastQuestion,
+							LastGuess:    r.LastGuess,
 						}
 						b, err := json.Marshal(ev)
 						if err != nil {
@@ -351,7 +352,7 @@ func GameHandler(
 				})
 				room.State = StateAnswering
 				roomManager.Update(room)
-			case CmdTypeAnswer:
+			case CmdTypeAnswerQuestion:
 				cmd := new(AnswerCommand)
 				err = json.Unmarshal(msg, cmd)
 				if err != nil {
@@ -422,9 +423,61 @@ func GameHandler(
 				}
 
 				if a.YesCount+a.NoCount+a.UnsureCount == len(room.Players)-1 {
-					room.State = StateAsking
+					room.State = StateAskOrGuess
 					room.NextTurn()
 				}
+				roomManager.Update(room)
+			case CmdTypeGuess:
+				cmd := new(GuessCommand)
+				err = json.Unmarshal(msg, cmd)
+				if err != nil {
+					lgr.Error().Err(err).Msg("JSON Unmarshal websocket message failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				err = validator.Struct(cmd)
+				if err != nil {
+					const errMsg = "Invalid command data"
+					lgr.Error().Err(err).Msg(errMsg)
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: errMsg,
+					})
+					continue
+				}
+
+				room, err := roomManager.FindByID(cmd.RoomID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Find room failed")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: err.Error(),
+					})
+					continue
+				}
+
+				p, err := room.Players.FindByID(cmd.PlayerID)
+				if err != nil {
+					lgr.Error().Err(err).Msg("Player not in the room")
+					c.WriteJSON(ErrorEvent{
+						Event: Event{Type: EvtError},
+						Error: "Player not in the room!",
+					})
+					continue
+				}
+
+				p.Guesses = append(p.Guesses, &Guess{
+					ID:           uuid.New(),
+					Word:         cmd.Guess,
+					CorrectCount: 0,
+					WrongCount:   0,
+					CreatedAt:    time.Now(),
+				})
+				room.State = StateGuessChecking
 				roomManager.Update(room)
 			default:
 				errMsg := "unknown command type: " + strconv.Itoa(int(cmd.Type))

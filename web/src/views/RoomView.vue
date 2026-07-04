@@ -168,6 +168,21 @@ function askQuestion() {
   askGuessText.value = ''
 }
 
+function guess() {
+  console.log('Guess:', askGuessText.value)
+
+  const msg = JSON.stringify({
+    type: CommandType.Guess,
+    rid: room.value.id,
+    pid: room.value.active_player.id,
+    guess: askGuessText.value,
+  })
+  console.debug('Guess msg:', msg)
+  ws.send(msg)
+
+  askGuessText.value = ''
+}
+
 function answer(qid: string, val: Answer) {
   console.log('Answer question:', askGuessText.value)
 
@@ -279,7 +294,11 @@ function answer(qid: string, val: Answer) {
 
     <!-- Guessing state -->
     <div
-      v-else-if="room.state === RoomState.Asking || room.state === RoomState.Answering"
+      v-else-if="
+        room.state === RoomState.AskOrGuess ||
+        room.state === RoomState.Answering ||
+        room.state === RoomState.GuessChecking
+      "
       class="container"
     >
       <div class="row justify-content-center">
@@ -309,6 +328,78 @@ function answer(qid: string, val: Answer) {
                 </tbody>
               </table>
             </div>
+
+            <div
+              v-show="room.state === RoomState.AskOrGuess"
+              class="col rounded border p-3"
+              style="background: white"
+            >
+              <div class="container">
+                <div v-show="room.active_player.id !== player.id" class="text-center">
+                  <div>
+                    Waiting for <b>{{ room.active_player.name }}</b> to ask/guess
+                  </div>
+                </div>
+                <div v-show="room.active_player.id === player.id" class="row">
+                  <div class="col-12">
+                    <!-- Ask/Guess button -->
+                    <div>Ask / Guess</div>
+                  </div>
+                  <div class="col-12">
+                    <input
+                      v-model="askGuessText"
+                      class="form-control"
+                      type="text"
+                      :disabled="room.active_player.id !== player.id"
+                    />
+                  </div>
+                  <div class="col-12 d-flex justify-content-end mt-2">
+                    <button class="btn btn-success" @click="guess">Guess</button>
+                    <button class="btn btn-primary ms-1" @click="askQuestion">Ask</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-show="room.state === RoomState.GuessChecking"
+              class="col-12 border rounded mb-2 p-3"
+              style="background: white"
+            >
+              <div v-show="room.active_player.id === player.id" class="row text-center">
+                <h4>Waiting for other players to check the guess</h4>
+              </div>
+              <div v-show="room.active_player.id !== player.id" class="row">
+                <div class="col-12">
+                  <b>{{ room.active_player.name }}</b>
+                </div>
+                <div class="col-12">Guess: {{ room.last_guess?.word }}</div>
+                <div class="col d-flex justify-content-end">
+                  <div class="btn-group">
+                    <button
+                      class="btn btn-primary"
+                      @click="
+                        () => {
+                          answer(room.last_question?.id ?? '', Answer.Yes)
+                        }
+                      "
+                    >
+                      Correct
+                    </button>
+                    <button
+                      class="btn btn-danger"
+                      @click="
+                        () => {
+                          answer(room.last_question?.id ?? '', Answer.No)
+                        }
+                      "
+                    >
+                      Wrong
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div
               v-show="room.state === RoomState.Answering"
               class="col-12 border rounded mb-2 p-3"
@@ -322,7 +413,6 @@ function answer(qid: string, val: Answer) {
                   <b>{{ room.active_player.name }}</b>
                 </div>
                 <div class="col-12">Question: {{ room.last_question?.value }}</div>
-                <!-- <div class="col-12">Guess: {{ room.last_question?.value }}</div> -->
                 <div class="col d-flex justify-content-end">
                   <div class="btn-group">
                     <button
@@ -359,37 +449,6 @@ function answer(qid: string, val: Answer) {
                 </div>
               </div>
             </div>
-            <div
-              v-show="room.state === RoomState.Asking"
-              class="col rounded border p-3"
-              style="background: white"
-            >
-              <div class="container">
-                <div v-show="room.active_player.id !== player.id" class="text-center">
-                  <div>
-                    Waiting for <b>{{ room.active_player.name }}</b> to ask/guess
-                  </div>
-                </div>
-                <div v-show="room.active_player.id === player.id" class="row">
-                  <div class="col-12">
-                    <!-- Ask/Guess button -->
-                    <div>Ask / Guess</div>
-                  </div>
-                  <div class="col-12">
-                    <input
-                      v-model="askGuessText"
-                      class="form-control"
-                      type="text"
-                      :disabled="room.active_player.id !== player.id"
-                    />
-                  </div>
-                  <div class="col-12 d-flex justify-content-end mt-2">
-                    <button class="btn btn-success">Guess</button>
-                    <button class="btn btn-primary ms-1" @click="askQuestion">Ask</button>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <!-- Question logs -->
             <div class="col-12 rounded border mt-2 p-3" style="background: white">
@@ -418,7 +477,6 @@ function answer(qid: string, val: Answer) {
         </div>
       </div>
     </div>
-
     <div v-else-if="room.state === RoomState.Finished">Finished</div>
     <div v-else>
       <h2>Invalid room state: {{ room.state }}</h2>

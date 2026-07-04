@@ -1,7 +1,8 @@
 export enum RoomState {
   Lobby = 1,
   Thinking,
-  Asking,
+  AskOrGuess,
   Answering,
+  GuessChecking,
   Finished,
 }
