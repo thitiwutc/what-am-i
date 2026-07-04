@@ -77,7 +77,7 @@ watch(player, (newPlayer) => {
   console.debug({ player: newPlayer })
   if (player.value.is_word_guessed && !alertCorrectGuess.value) {
     alertCorrectGuess.value = true
-    alert('You guess the word correctly!')
+    alert(`You guess correctly!\nThe word is ${player.value.secret_word}`)
   }
 })
 
