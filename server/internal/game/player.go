@@ -25,16 +25,17 @@ type Player struct {
 	// and guessing word in guessing phase
 	SecretWord string
 
-	Actions Actions
+	Questions Questions
+	Guesses   []*Guess
 }
 
 type PlayerState struct {
-	ID                    uuid.UUID  `json:"id"`
-	Name                  string     `json:"name"`
-	Role                  PlayerRole `json:"role"`
-	IsSecretWordSubmitted bool       `json:"isws"`
-	SecretWord            string     `json:"secret_word,omitempty"`
-	Actions               []*Action  `json:"actions"`
+	ID                    uuid.UUID   `json:"id"`
+	Name                  string      `json:"name"`
+	Role                  PlayerRole  `json:"role"`
+	IsSecretWordSubmitted bool        `json:"isws"`
+	SecretWord            string      `json:"secret_word,omitempty"`
+	Questions             []*Question `json:"questions"`
 }
 
 type Players []*Player
@@ -49,7 +50,7 @@ func (ps Players) FindByID(id uuid.UUID) (*Player, error) {
 	return nil, ErrPlayerNotFound
 }
 
-func (ps Players) Delete(id uuid.UUID) (Players, error) {
+func (ps Players) DeleteByID(id uuid.UUID) (Players, error) {
 	foundIdx := -1
 	for i, p := range ps {
 		if p.ID == id {

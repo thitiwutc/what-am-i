@@ -28,7 +28,6 @@ func (r *Room) addPlayer(name string, notify chan<- *RoomState) *Player {
 		Notify:     notify,
 		Role:       RoleParticipant,
 		SecretWord: "",
-		Actions:    make([]*Action, 0),
 	}
 	if p.Name == "" {
 		p.Name = util.GeneratePlayerName()
@@ -56,7 +55,7 @@ type RoomState struct {
 	State        State                     `json:"state"`
 	Players      map[uuid.UUID]PlayerState `json:"players"`
 	ActivePlayer PlayerState               `json:"active_player"`
-	ActiveAction *Action                   `json:"active_action"`
+	LastQuestion *Question                 `json:"last_question"`
 }
 
 type CreateRoomResponse struct {
@@ -209,20 +208,20 @@ func (r *RoomManager) Update(room *Room) error {
 			Role:                  p.Role,
 			IsSecretWordSubmitted: p.SecretWord != "",
 			SecretWord:            p.SecretWord,
-			Actions:               p.Actions,
+			Questions:             p.Questions,
 		}
 	}
 
-	activeActions := room.Players[room.ActivePlayerIdx].Actions
+	activeQuestions := room.Players[room.ActivePlayerIdx].Questions
 	rs := RoomState{
 		ID:           room.ID,
 		State:        room.State,
 		Players:      ps,
 		ActivePlayer: ps[room.Players[room.ActivePlayerIdx].ID],
-		ActiveAction: nil,
+		LastQuestion: nil,
 	}
-	if len(activeActions) > 0 {
-		rs.ActiveAction = activeActions[len(activeActions)-1]
+	if len(activeQuestions) > 0 {
+		rs.LastQuestion = activeQuestions[len(activeQuestions)-1]
 	}
 
 	// Notify each player in the room.
@@ -231,4 +230,8 @@ func (r *RoomManager) Update(room *Room) error {
 	}
 
 	return nil
+}
+
+func (r *RoomManager) DeleteByID(id string) {
+	delete(r.rooms, id)
 }

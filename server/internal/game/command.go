@@ -44,8 +44,8 @@ type AskCommand struct {
 
 type AnswerCommand struct {
 	Command
-	ActionID uuid.UUID `json:"aid"`
-	RoomID   string    `json:"rid" validate:"required,len=4"`
-	PlayerID uuid.UUID `json:"pid"`
-	Answer   Answer    `json:"answer"`
+	QuestionID uuid.UUID `json:"qid"`
+	RoomID     string    `json:"rid" validate:"required,len=4"`
+	PlayerID   uuid.UUID `json:"pid"`
+	Answer     Answer    `json:"answer"`
 }

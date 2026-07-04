@@ -9,7 +9,6 @@ import type { Player } from '@/types/player'
 import { Role } from '@/types/role-type'
 import { RoomState } from '@/types/room-state'
 import { Answer } from '@/types/answer-type'
-import { ActionType } from '@/types/action-type'
 
 const env = getEnv()
 const ws = new WebSocket(new URL('ws', env.apiUrl))
@@ -24,9 +23,9 @@ const room = ref<Room>({
     role: Role.HOST,
     secret_word: '',
     isws: false,
-    actions: [],
+    questions: [],
   },
-  active_action: null,
+  last_question: null,
 })
 const pid = ref('')
 const player = computed((): Player => {
@@ -36,7 +35,7 @@ const player = computed((): Player => {
     role: Role.PARTICIPANT,
     secret_word: '',
     isws: false,
-    actions: [],
+    questions: [],
   }
   if (!pid.value) {
     return zeroValuePlayer
@@ -53,7 +52,7 @@ const player = computed((): Player => {
     role: found.role,
     secret_word: found.secret_word,
     isws: found.isws,
-    actions: found.actions,
+    questions: found.questions,
   }
 })
 const secretWord = ref('')
@@ -169,14 +168,14 @@ function askQuestion() {
   askGuessText.value = ''
 }
 
-function answer(aid: string, val: Answer) {
+function answer(qid: string, val: Answer) {
   console.log('Answer question:', askGuessText.value)
 
   const msg = JSON.stringify({
     type: CommandType.AnswerQuestion,
     rid: room.value.id,
     pid: room.value.active_player.id,
-    aid,
+    qid,
     answer: val,
   })
   console.debug('Answer question msg', msg)
@@ -322,19 +321,15 @@ function answer(aid: string, val: Answer) {
                 <div class="col-12">
                   <b>{{ room.active_player.name }}</b>
                 </div>
-                <div v-show="room.active_action?.type === ActionType.Question" class="col-12">
-                  Question: {{ room.active_action?.value }}
-                </div>
-                <div v-show="room.active_action?.type === ActionType.Guessing" class="col-12">
-                  Guess: {{ room.active_action?.value }}
-                </div>
+                <div class="col-12">Question: {{ room.last_question?.value }}</div>
+                <!-- <div class="col-12">Guess: {{ room.last_question?.value }}</div> -->
                 <div class="col d-flex justify-content-end">
                   <div class="btn-group">
                     <button
                       class="btn btn-primary"
                       @click="
                         () => {
-                          answer(room.active_action?.id ?? '', Answer.Yes)
+                          answer(room.last_question?.id ?? '', Answer.Yes)
                         }
                       "
                     >
@@ -344,7 +339,7 @@ function answer(aid: string, val: Answer) {
                       class="btn btn-danger"
                       @click="
                         () => {
-                          answer(room.active_action?.id ?? '', Answer.No)
+                          answer(room.last_question?.id ?? '', Answer.No)
                         }
                       "
                     >
@@ -354,7 +349,7 @@ function answer(aid: string, val: Answer) {
                       class="btn btn-secondary"
                       @click="
                         () => {
-                          answer(room.active_action?.id ?? '', Answer.Unsure)
+                          answer(room.last_question?.id ?? '', Answer.Unsure)
                         }
                       "
                     >
@@ -396,11 +391,11 @@ function answer(aid: string, val: Answer) {
               </div>
             </div>
 
-            <!-- Action logs -->
+            <!-- Question logs -->
             <div class="col-12 rounded border mt-2 p-3" style="background: white">
               <h5>Your questions</h5>
 
-              <table class="table table-responsive table-striped-columns">
+              <table class="table table-responsive table-striped">
                 <thead>
                   <tr>
                     <th>Question</th>
@@ -410,14 +405,11 @@ function answer(aid: string, val: Answer) {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr
-                    v-for="action in player.actions.filter((a) => a.type === ActionType.Question)"
-                    :key="action.id"
-                  >
-                    <td>{{ action.value }}</td>
-                    <td>{{ action.yes_count }}</td>
-                    <td>{{ action.no_count }}</td>
-                    <td>{{ action.unsure_count }}</td>
+                  <tr v-for="question in player.questions" :key="question.id">
+                    <td>{{ question.value }}</td>
+                    <td>{{ question.yes_count }}</td>
+                    <td>{{ question.no_count }}</td>
+                    <td>{{ question.unsure_count }}</td>
                   </tr>
                 </tbody>
               </table>

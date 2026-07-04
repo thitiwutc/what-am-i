@@ -1,4 +1,4 @@
-import type { Action } from './action'
+import type { Question } from './question'
 import type { Role } from './role-type'
 
 export type Player = {
@@ -9,5 +9,5 @@ export type Player = {
   secret_word: string
   // isws is true if the player submitted secret word.
   isws: boolean
-  actions: Action[]
+  questions: Question[]
 }

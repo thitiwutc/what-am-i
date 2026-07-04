@@ -1,8 +1,5 @@
-import type { ActionType } from './action-type'
-
-export type Action = {
+export type Question = {
   id: string
-  type: ActionType
   value: string
   yes_count: number
   no_count: number

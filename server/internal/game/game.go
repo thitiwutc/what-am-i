@@ -40,11 +40,15 @@ func GameHandler(
 					if err != nil {
 						lgr.Error().Err(err).Msg("Find room failed")
 					} else {
-						newPlayers, err := room.Players.Delete(pid)
+						newPlayers, err := room.Players.DeleteByID(pid)
 						if err != nil {
 							lgr.Error().Err(err).Msg("Delete player failed")
 						} else {
 							room.Players = newPlayers
+						}
+
+						if len(room.Players) == 0 {
+							roomManager.DeleteByID(roomId)
 						}
 					}
 
@@ -141,7 +145,7 @@ func GameHandler(
 							State:        r.State,
 							Players:      players,
 							ActivePlayer: r.ActivePlayer,
-							ActiveAction: r.ActiveAction,
+							LastQuestion: r.LastQuestion,
 						}
 						b, err := json.Marshal(ev)
 						if err != nil {
@@ -337,9 +341,8 @@ func GameHandler(
 					continue
 				}
 
-				p.Actions = append(p.Actions, &Action{
+				p.Questions = append(p.Questions, &Question{
 					ID:          uuid.New(),
-					Type:        ActionTypeQuestion,
 					Value:       cmd.Question,
 					YesCount:    0,
 					NoCount:     0,
@@ -391,9 +394,9 @@ func GameHandler(
 					continue
 				}
 
-				a, err := p.Actions.FindByID(cmd.ActionID)
+				a, err := p.Questions.FindByID(cmd.QuestionID)
 				if err != nil {
-					lgr.Error().Err(err).Msg("Find action failed")
+					lgr.Error().Err(err).Msg("Find question failed")
 					c.WriteJSON(ErrorEvent{
 						Event: Event{Type: EvtError},
 						Error: err.Error(),
