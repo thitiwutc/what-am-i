@@ -77,7 +77,7 @@ watch(player, (newPlayer) => {
   console.debug({ player: newPlayer })
   if (player.value.is_word_guessed && !alertCorrectGuess.value) {
     alertCorrectGuess.value = true
-    alert(`You guess correctly!\nThe word is ${player.value.secret_word}`)
+    alert(`You guess correctly!\nThe word is "${player.value.secret_word}"`)
   }
 })
 
@@ -268,13 +268,12 @@ function judgeGuess(gid: string, decision: Desicion) {
               </div>
               <div class="col-12">
                 <ul>
-                  <li v-for="player in room.players" :key="player.id">
-                    <div v-if="player.role === Role.HOST">
-                      {{ player.name }}
-                      <i class="bi bi-yin-yang"></i>
-                    </div>
-                    <div v-else>
-                      {{ player.name }}
+                  <li v-for="p in room.players" :key="p.id">
+                    <div>
+                      <span :style="p.id == player.id ? { color: '#388E3C' } : {}">{{
+                        p.name
+                      }}</span>
+                      <i v-if="p.role === Role.HOST" class="bi bi-yin-yang ms-2"></i>
                     </div>
                   </li>
                 </ul>
@@ -321,7 +320,8 @@ function judgeGuess(gid: string, decision: Desicion) {
           <div class="mt-2">
             <ul>
               <li v-for="p in room.players" :key="p.id">
-                {{ p.name }} <i v-show="p.isws" class="bi bi-check"></i>
+                <span :style="p.id == player.id ? { color: '#388E3C' } : {}">{{ p.name }}</span>
+                <i v-show="p.isws" class="bi bi-check ms-2"></i>
               </li>
             </ul>
           </div>
@@ -359,7 +359,7 @@ function judgeGuess(gid: string, decision: Desicion) {
                         class="bi bi-arrow-right-short"
                       ></i>
                     </td>
-                    <td>{{ p.name }}</td>
+                    <td :style="p.id == player.id ? { color: '#388E3C' } : {}">{{ p.name }}</td>
                     <td v-if="p.id === player.id && !player.is_word_guessed">
                       <i class="bi bi-eye-slash-fill"></i>
                     </td>
@@ -518,7 +518,54 @@ function judgeGuess(gid: string, decision: Desicion) {
         </div>
       </div>
     </div>
-    <div v-else-if="room.state === RoomState.Finished">Finished</div>
+    <div v-else-if="room.state === RoomState.Finished" class="container">
+      <div class="row justify-content-center">
+        <div class="col-6">
+          <div class="row justify-content-center">
+            <div class="col-12">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Player</th>
+                    <th scope="col">Word</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="p in room.players" :key="p.id">
+                    <td :style="p.id == player.id ? { color: '#388E3C' } : {}">{{ p.name }}</td>
+                    <td>{{ p.secret_word }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Question logs -->
+            <div class="col-12 rounded border mt-2 p-3" style="background: white">
+              <h5>Your questions</h5>
+
+              <table class="table table-responsive table-striped">
+                <thead>
+                  <tr>
+                    <th>Question</th>
+                    <th><i class="bi bi-check"></i></th>
+                    <th><i class="bi bi-x"></i></th>
+                    <th><i class="bi bi-question"></i></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="question in player.questions" :key="question.id">
+                    <td>{{ question.value }}</td>
+                    <td>{{ question.yes_count }}</td>
+                    <td>{{ question.no_count }}</td>
+                    <td>{{ question.unsure_count }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div v-else>
       <h2>Invalid room state: {{ room.state }}</h2>
     </div>

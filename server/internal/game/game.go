@@ -50,14 +50,14 @@ func GameHandler(
 
 						if len(room.Players) == 0 {
 							roomManager.DeleteByID(roomId)
+						} else {
+							err = roomManager.Update(room)
+							if err != nil {
+								lgr.Error().Err(err).Msg("Update room failed")
+							}
+							lgr.Info().Str("pid", pid.String()).Msg("Removed player from the room")
 						}
 					}
-
-					err = roomManager.Update(room)
-					if err != nil {
-						lgr.Error().Err(err).Msg("Update room failed")
-					}
-					lgr.Info().Str("pid", pid.String()).Msg("Removed player from the room")
 				}
 				close(notify)
 				break
